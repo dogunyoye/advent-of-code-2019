@@ -18,8 +18,8 @@ func main() {
         scanner := bufio.NewScanner(file)
         scanner.Split(bufio.ScanLines)
 
-        part1 := 0
-        part2 := 0
+        var part1 = 0
+        var part2 = 0
 
         for scanner.Scan() {
                 i, err := strconv.Atoi(scanner.Text())
@@ -29,7 +29,7 @@ func main() {
                         os.Exit(2)
                 }
 
-                moduleFuel := int(float64(i/3) - 2)
+                var moduleFuel = int(float64(i/3) - 2)
                 part1 += moduleFuel
                 part2 += moduleFuel
 
