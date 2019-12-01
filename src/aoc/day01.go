@@ -26,8 +26,8 @@ func main() {
 
         file.Close()
 
-        requirement := 0
-        var moduleFuels []int
+        part1 := 0
+        part2 := 0
 
         for _, eachline := range txtlines {
                 i, err := strconv.Atoi(eachline)
@@ -37,30 +37,21 @@ func main() {
                         os.Exit(2)
                 }
 
-                moduleFuel := math.Floor(float64(i/3)) - 2
-                requirement += int(moduleFuel)
-
-                moduleFuels = append(moduleFuels, int(moduleFuel))
-        }
-
-        fmt.Println("Part1:", requirement)
-
-        total := 0
-
-        for _, fuel := range moduleFuels {
-                currentFuel := fuel
-                total += currentFuel
+                moduleFuel := int(math.Floor(float64(i/3)) - 2)
+                part1 += moduleFuel
+                part2 += moduleFuel
 
                 for  {
-                        currentFuel = int(math.Floor(float64(currentFuel/3)) - 2)
+                        moduleFuel = int(math.Floor(float64(moduleFuel/3)) - 2)
 
-                        if int(currentFuel) <= 0 {
+                        if moduleFuel <= 0 {
                                 break
                         }
 
-                        total += currentFuel
+                        part2 += moduleFuel
                 }
         }
 
-        fmt.Println("Part2:", total)
+        fmt.Println("Part1:", part1)
+        fmt.Println("Part2:", part2)
 }
