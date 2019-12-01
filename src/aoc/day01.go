@@ -33,9 +33,8 @@ func main() {
                 part1 += moduleFuel
                 part2 += moduleFuel
 
-                for  {
+                for {
                         moduleFuel = int(float64(moduleFuel/3) - 2)
-
                         if moduleFuel <= 0 {
                                 break
                         }
