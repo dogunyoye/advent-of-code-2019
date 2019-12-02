@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+func copyArray(array []int) []int {
+	arrNew := make([]int, 0)
+	arrNew = append(arrNew, array...)
+	return arrNew
+}
+
 func generateProgram() []int {
 	file, err := os.Open("../../data/day02.txt")
 
@@ -76,18 +82,18 @@ func runProgram1(program []int) {
 	}
 }
 
-func runProgram2(output int) {
-
+func runProgram2(p []int, output int) {
 	for noun := 0; noun <= 99; noun++ {
 		for verb := 0; verb <= 99; verb++ {
-			program := generateProgram()
+			program := copyArray(p)
 			program[1] = noun
 			program[2] = verb
 
 			runProgram1(program)
 			if program[0] == output {
 				part2 := (100 * program[1]) + program[2]
-				fmt.Println("Part2", part2)
+				fmt.Println("Part2:", part2)
+				return
 			}
 		}
 	}
@@ -95,13 +101,14 @@ func runProgram2(output int) {
 
 func main() {
 
-	var program1 = generateProgram()
+	var program1 = copyArray(generateProgram())
+	var program2 = copyArray(program1)
 
 	program1[1] = 12
 	program1[2] = 2
 	runProgram1(program1)
 
-	fmt.Println("Part1", program1[0])
+	fmt.Println("Part1:", program1[0])
 
-	runProgram2(19690720)
+	runProgram2(program2, 19690720)
 }
