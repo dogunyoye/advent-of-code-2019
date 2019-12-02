@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func GenerateProgram() []int {
+func generateProgram() []int {
 	file, err := os.Open("../../data/day02.txt")
 
 	if err != nil {
@@ -42,31 +42,29 @@ func GenerateProgram() []int {
 	return program
 }
 
-func RunProgram1(program []int) {
-	var opcodeIndex = 0
-	var opcode = program[opcodeIndex]
+func runOpcode(opcode int, opcodeIndex int, program []int) {
+	firstOperand := program[program[opcodeIndex+1]]
+	secondOperand := program[program[opcodeIndex+2]]
+	resultIndex := program[opcodeIndex+3]
+
+	if opcode == 1 {
+		program[resultIndex] = firstOperand + secondOperand
+	} else {
+		program[resultIndex] = firstOperand * secondOperand
+	}
+}
+
+func runProgram1(program []int) {
+	opcodeIndex := 0
+	opcode := program[opcodeIndex]
 
 	for {
-		firstOperand := 0
-		secondOperand := 0
-		resultIndex := 0
 
 		switch opcode {
 		case 1:
-			// addition
-			firstOperand = program[program[opcodeIndex+1]]
-			secondOperand = program[program[opcodeIndex+2]]
-			resultIndex = program[opcodeIndex+3]
-
-			program[resultIndex] = firstOperand + secondOperand
-			break
+			fallthrough
 		case 2:
-			// multiplication
-			firstOperand = program[program[opcodeIndex+1]]
-			secondOperand = program[program[opcodeIndex+2]]
-			resultIndex = program[opcodeIndex+3]
-
-			program[resultIndex] = firstOperand * secondOperand
+			runOpcode(opcode, opcodeIndex, program)
 			break
 		case 99:
 			// halt
@@ -78,16 +76,15 @@ func RunProgram1(program []int) {
 	}
 }
 
-func RunProgram2(output int) {
+func runProgram2(output int) {
 
 	for noun := 0; noun <= 99; noun++ {
-
 		for verb := 0; verb <= 99; verb++ {
-			program := GenerateProgram()
+			program := generateProgram()
 			program[1] = noun
 			program[2] = verb
 
-			RunProgram1(program)
+			runProgram1(program)
 			if program[0] == output {
 				part2 := (100 * program[1]) + program[2]
 				fmt.Println("Part2", part2)
@@ -98,13 +95,13 @@ func RunProgram2(output int) {
 
 func main() {
 
-	var program1 = GenerateProgram()
+	var program1 = generateProgram()
 
 	program1[1] = 12
 	program1[2] = 2
-	RunProgram1(program1)
+	runProgram1(program1)
 
 	fmt.Println("Part1", program1[0])
 
-	RunProgram2(19690720)
+	runProgram2(19690720)
 }
