@@ -27,17 +27,8 @@ func main() {
 
 	file.Close()
 
-	lowerLimit, err := strconv.Atoi(input[0])
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-	}
-
-	upperLimit, err := strconv.Atoi(input[1])
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-	}
+	lowerLimit, _ := strconv.Atoi(input[0])
+	upperLimit, _ := strconv.Atoi(input[1])
 
 	// using a map to eliminate duplicates
 	passwordCandidates := make(map[int]bool)
@@ -48,7 +39,7 @@ func main() {
 	for i := lowerLimit; i <= upperLimit; i++ {
 		number := strconv.Itoa(i)
 		for j := 0; j < len(number)-1; j++ {
-			if (number[j:j+1] == number[j+1:j+2]) && (number[j] >= number[j+1]) {
+			if number[j] == number[j+1] {
 				passwordCandidates[i] = true
 			}
 		}
@@ -59,7 +50,9 @@ func main() {
 		candidate := strconv.Itoa(key)
 
 		for k := 0; k < len(candidate)-1; k++ {
-			if []rune(candidate[k : k+1])[0] > []rune(candidate[k+1 : k+2])[0] {
+			// if the left number is greater than the right number
+			// terminate. Rule broken
+			if candidate[k] > candidate[k+1] {
 				isCandidate = false
 				break
 			}
@@ -80,7 +73,7 @@ func main() {
 		isPart2Candidate := false
 
 		for k := 0; k < len(part2Candidate)-1; k++ {
-			if []rune(part2Candidate[k : k+1])[0] == []rune(part2Candidate[k+1 : k+2])[0] {
+			if part2Candidate[k] == part2Candidate[k+1] {
 				dupCounter++
 			} else {
 				if dupCounter == 1 {
