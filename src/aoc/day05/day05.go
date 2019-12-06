@@ -235,12 +235,12 @@ func runDiagnosticProgram(program []int, input int) {
 func main() {
 
 	var program1 = copyArray(generateProgram())
-	//var program2 = copyArray(program1)
+	var program2 = copyArray(program1)
 
 	runDiagnosticProgram(program1, 1)
 	fmt.Println("Part1:", output)
 	memPointer = 0
 
-	// runDiagnosticProgram(program2, 5)
-	// fmt.Println("Part2:", output)
+	runDiagnosticProgram(program2, 5)
+	fmt.Println("Part2:", output)
 }
