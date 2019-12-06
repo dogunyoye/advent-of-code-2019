@@ -89,8 +89,11 @@ func runOpcodeForParameterMode(opcode int, opcodeIndex int, program []int) int {
 	}
 
 	if opcode == 4 {
-		//fmt.Println("output:", program[firstOperand])
-		output = program[firstOperand]
+		if paramMode0 == 0 {
+			output = program[firstOperand]
+		} else {
+			output = firstOperand
+		}
 		return 2
 	}
 
@@ -208,7 +211,6 @@ func runDiagnosticProgram(program []int, input int) {
 		case 3:
 			program[program[memPointer+1]] = input
 		case 4:
-			//fmt.Println("output:", program[program[memPointer+1]])
 			output = program[program[memPointer+1]]
 		case 5:
 			fallthrough
@@ -233,12 +235,12 @@ func runDiagnosticProgram(program []int, input int) {
 func main() {
 
 	var program1 = copyArray(generateProgram())
-	var program2 = copyArray(program1)
+	//var program2 = copyArray(program1)
 
 	runDiagnosticProgram(program1, 1)
 	fmt.Println("Part1:", output)
 	memPointer = 0
 
-	runDiagnosticProgram(program2, 5)
-	fmt.Println("Part2:", output)
+	// runDiagnosticProgram(program2, 5)
+	// fmt.Println("Part2:", output)
 }
