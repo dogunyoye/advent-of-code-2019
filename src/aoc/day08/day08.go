@@ -121,7 +121,7 @@ func main() {
 		normalisedImage += string(decodedImage[x])
 	}
 
-	normalisedImage = strings.Replace(normalisedImage, "1", "*", -1)
+	normalisedImage = strings.Replace(normalisedImage, "1", "#", -1)
 	normalisedImage = strings.Replace(normalisedImage, "0", ".", -1)
 
 	fmt.Println("Part2:")
