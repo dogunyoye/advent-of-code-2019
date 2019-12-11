@@ -403,10 +403,17 @@ func main() {
 	fmt.Println("Part2:")
 
 	for i := 0; i < 150; i++ {
+		hasPrinted := false
 		for j := 0; j < 150; j++ {
-			fmt.Print(visualise[j][i])
+			if visualise[j][i] != "" {
+				fmt.Print(visualise[j][i])
+				hasPrinted = true
+			}
 		}
-		fmt.Println()
+
+		if hasPrinted {
+			fmt.Println()
+		}
 	}
 
 }
