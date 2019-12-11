@@ -10,9 +10,8 @@ import (
 )
 
 type position struct {
-	index int
-	X     int
-	Y     int
+	X int
+	Y int
 }
 
 func scanAsteroids(asteroids []position) (int, position) {
@@ -152,7 +151,7 @@ func main() {
 		line := scanner.Text()
 		for i := 0; i < len(line); i++ {
 			if line[i] == '#' {
-				asteroids = append(asteroids, position{index, i, row})
+				asteroids = append(asteroids, position{i, row})
 				index++
 			}
 		}
