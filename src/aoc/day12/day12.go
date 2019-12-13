@@ -27,10 +27,6 @@ type moon struct {
 
 var moonStates = make(map[string][]moon)
 
-var initialState = ""
-var currentState = ""
-var previousState = ""
-
 var initialX, initialY, initialZ = "", "", ""
 
 func copyArray(array []moon) []moon {
@@ -104,9 +100,11 @@ func lcm(a, b int64, integers ...int64) int64 {
 func searchForPreviousMoonStates(moons []moon) int64 {
 	steps := int64(0)
 
-	moonXMap := make(map[string]string)
-	moonYMap := make(map[string]string)
-	moonZMap := make(map[string]string)
+	var exists = struct{}{}
+
+	moonXMap := make(map[string]struct{})
+	moonYMap := make(map[string]struct{})
+	moonZMap := make(map[string]struct{})
 
 	foundX, foundY, foundZ := false, false, false
 	xStep, yStep, zStep := int64(0), int64(0), int64(0)
@@ -124,7 +122,7 @@ func searchForPreviousMoonStates(moons []moon) int64 {
 			foundX = true
 			xStep = steps
 		} else {
-			moonXMap[moonXPos] = ""
+			moonXMap[moonXPos] = exists
 		}
 
 		_, e2 := moonYMap[moonYPos]
@@ -132,7 +130,7 @@ func searchForPreviousMoonStates(moons []moon) int64 {
 			foundY = true
 			yStep = steps
 		} else {
-			moonYMap[moonYPos] = ""
+			moonYMap[moonYPos] = exists
 		}
 
 		_, e3 := moonZMap[moonZPos]
@@ -140,7 +138,7 @@ func searchForPreviousMoonStates(moons []moon) int64 {
 			foundZ = true
 			zStep = steps
 		} else {
-			moonZMap[moonZPos] = ""
+			moonZMap[moonZPos] = exists
 		}
 
 		if foundX && foundY && foundZ {
@@ -206,14 +204,9 @@ func main() {
 
 	fmt.Println("Part1:", total)
 
-	initialState = strconv.Itoa(moons2[0].X) + strconv.Itoa(moons2[0].Y) + strconv.Itoa(moons2[0].Z)
-
 	initialX = strconv.Itoa(moons2[0].X) + strconv.Itoa(moons2[1].X) + strconv.Itoa(moons2[2].X) + strconv.Itoa(moons2[3].X)
 	initialY = strconv.Itoa(moons2[0].Y) + strconv.Itoa(moons2[1].Y) + strconv.Itoa(moons2[2].Y) + strconv.Itoa(moons2[3].Y)
 	initialZ = strconv.Itoa(moons2[0].Z) + strconv.Itoa(moons2[1].Z) + strconv.Itoa(moons2[2].Z) + strconv.Itoa(moons2[3].Z)
 
-	for _, m := range moons2 {
-		initialState += strconv.Itoa(m.X) + strconv.Itoa(m.Y) + strconv.Itoa(m.Z)
-	}
 	fmt.Println("Part2:", searchForPreviousMoonStates(moons2))
 }
