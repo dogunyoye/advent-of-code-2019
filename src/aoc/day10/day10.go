@@ -95,7 +95,6 @@ func scanAsteroidsAndDestroy(station position, asteroids []position) position {
 			m2 := math.Abs(float64(posXDiff)) + math.Abs(float64(posYDiff))
 
 			if m2 > m1 {
-				delete(asteroidInView, angle)
 				asteroidInView[angle] = otherAsteroid
 			}
 		}
@@ -115,7 +114,7 @@ func scanAsteroidsAndDestroy(station position, asteroids []position) position {
 	}
 
 	// create a new list and append angles starting in the up
-	// direction, clockwise
+	// direction, rotating clockwise
 	for i, a := range angles {
 		if a <= math.Atan2(float64(1), float64(0)) && a > math.Atan2(float64(-1), float64(0)) {
 			anglesInUpOrder = append(anglesInUpOrder, angles[i:]...)
