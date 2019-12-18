@@ -31,6 +31,9 @@ var oreFormulas = make(map[string]oreReaction)
 var normalFormulas = make(map[string]formulaReaction)
 var fuelFormula = ""
 
+var tempOre = 0
+var limitReached = false
+
 var wasted = make(map[string]int)
 
 func calculateIngredientsNeeded(numNeeded int, letter string, total *int) {
@@ -99,6 +102,79 @@ func calculateIngredientsNeeded(numNeeded int, letter string, total *int) {
 
 }
 
+// Brute force solution - must be adapted into something smarter
+func calculateMaxFuelFromOneBillionOre(numNeeded int, letter string, total *int) {
+	var output = 0
+
+	_, isOreFormula := oreFormulas[letter]
+	if isOreFormula {
+		var f = oreFormulas[letter]
+		output = f.numberOfOutput
+
+	} else {
+		var f = normalFormulas[letter]
+		output = f.numberOfOutput
+	}
+
+	var iterations = 0
+
+	_, wasteExists := wasted[letter]
+	if wasteExists {
+		if wasted[letter] <= numNeeded {
+			numNeeded -= wasted[letter]
+			wasted[letter] = 0
+		} else {
+			wasted[letter] -= numNeeded
+			numNeeded = 0
+		}
+	} else {
+		wasted[letter] = 0
+	}
+
+	if numNeeded == 0 {
+		return
+	}
+
+	if numNeeded <= output {
+		iterations = 1
+	} else {
+		iterations = int(math.Ceil(float64(numNeeded) / float64(output)))
+	}
+
+	// check if waste generated
+	excess := (iterations * output) - numNeeded
+	wasted[letter] += excess
+
+	if isOreFormula {
+
+		var needed = numNeeded
+		var current = 0
+		var r = oreFormulas[letter]
+
+		var ore = 0
+
+		for current < needed {
+			current += r.numberOfOutput
+
+			tempOre += r.numberOfOre
+			if tempOre < 1000000000000 {
+				ore += r.numberOfOre
+			} else {
+				limitReached = true
+				return
+			}
+		}
+
+		*total += ore
+	} else {
+		var f = normalFormulas[letter]
+
+		for _, ingredient := range f.ingredients {
+			calculateMaxFuelFromOneBillionOre(ingredient.number*iterations, ingredient.letter, total)
+		}
+	}
+}
+
 func main() {
 	file, err := os.Open("../../data/day14.txt")
 
@@ -163,5 +239,25 @@ func main() {
 	}
 
 	fmt.Println("Part1:", total)
+	total = 0
+	fuelProduced := 0
+
+	for {
+		for _, chems := range left {
+			c := strings.Split(chems, " ")
+			num, _ := strconv.Atoi(c[0])
+			letter := c[1]
+
+			calculateMaxFuelFromOneBillionOre(num, letter, &total)
+		}
+
+		if limitReached {
+			break
+		}
+
+		fuelProduced++
+	}
+
+	fmt.Println("Part2:", fuelProduced-1)
 
 }
