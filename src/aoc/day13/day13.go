@@ -31,11 +31,21 @@ type tile struct {
 	typeOfTile tileType
 }
 
+var part1 = false
+
 var currentX = int64(0)
 var currentY = int64(0)
 var typeOfTile = empty
 
 var tiles = make([]tile, 0)
+
+var currentScore = int64(0)
+
+var gameBall = tile{0, 0, ball}
+var gamePaddle = tile{0, 0, horizontalPaddle}
+
+var blocks = 0
+var scoreOutput = 0
 
 func copyArray(array []int64) []int64 {
 	arrNew := make([]int64, 0)
@@ -69,10 +79,24 @@ func constructTile(output int64) {
 			typeOfTile = horizontalPaddle
 		case 4:
 			typeOfTile = ball
+		default:
+			// current score output
+			currentScore = output
 		}
 
 		var t = tile{currentX, currentY, typeOfTile}
-		tiles = append(tiles, t)
+		if part1 {
+			tiles = append(tiles, t)
+		} else {
+			// do stuff
+			if t.typeOfTile == ball {
+				gameBall.X = t.X
+				gameBall.Y = t.Y
+			} else if t.typeOfTile == horizontalPaddle {
+				gamePaddle.X = t.X
+				gamePaddle.Y = t.Y
+			}
+		}
 
 		numberOfOutputs = 0
 		break
@@ -112,6 +136,17 @@ func generateProgram() []int64 {
 	return program
 }
 
+func moveJoystick() int64 {
+	// move left
+	if gameBall.X < gamePaddle.X {
+		return -1
+	} else if gameBall.X > gamePaddle.X {
+		return 1
+	}
+
+	return 0
+}
+
 func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64, input int64) int {
 	opcodeAsString := strconv.Itoa(int(opcode))
 
@@ -146,6 +181,11 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64,
 
 	// input instruction
 	if opcode == 3 {
+		if !part1 {
+			//game started
+			input = moveJoystick()
+		}
+
 		if paramMode0 == 0 { // position mode
 			program[program[opcodeIndex]] = input
 		} else if paramMode0 == 1 { // immediate mode
@@ -297,6 +337,9 @@ func runDiagnosticProgram(program []int64, input int64) {
 			opcodeJump = runOpcode(opcode, memPointer, program)
 			break
 		case 3:
+			if !part1 {
+				input = moveJoystick()
+			}
 			program[program[memPointer+1]] = input
 		case 4:
 			output = program[program[memPointer+1]]
@@ -327,7 +370,9 @@ func runDiagnosticProgram(program []int64, input int64) {
 func main() {
 
 	var program1 = copyArray(generateProgram())
-	//var program2 = copyArray(program1)
+	var program2 = copyArray(generateProgram())
+
+	part1 = true
 
 	runDiagnosticProgram(program1, 1)
 	memPointer = 0
@@ -342,7 +387,9 @@ func main() {
 
 	fmt.Println("Part1:", blockTiles)
 
-	//program2[0] = 2
+	part1 = false
+	program2[0] = 2
 
-	//runDiagnosticProgram(program2, 2)
+	runDiagnosticProgram(program2, 2)
+	fmt.Println("Part2:", currentScore)
 }
