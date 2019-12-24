@@ -143,7 +143,6 @@ func main() {
 	scanner.Split(bufio.ScanLines)
 
 	row := 0
-	index := 0
 	asteroids := []position{}
 
 	for scanner.Scan() {
@@ -151,7 +150,6 @@ func main() {
 		for i := 0; i < len(line); i++ {
 			if line[i] == '#' {
 				asteroids = append(asteroids, position{i, row})
-				index++
 			}
 		}
 
