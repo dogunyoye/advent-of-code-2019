@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func calculatePattern(num int, pattern []string) []int {
@@ -33,9 +34,6 @@ func calculatePattern(num int, pattern []string) []int {
 				}
 			}
 		}
-
-		//fmt.Println("debug:", len(p), len(pattern))
-
 	}
 
 	return p
@@ -68,6 +66,27 @@ func runFFT(input string, pattern []string) string {
 	return str
 }
 
+func part2(input string) []int {
+	var repeated = strings.Repeat(input, 10000)
+	offset, _ := strconv.Atoi(input[0:7])
+	output := make([]int, 0)
+
+	for i := offset; i < len(repeated); i++ {
+		val, _ := strconv.Atoi(string(repeated[i]))
+		output = append(output, val)
+	}
+
+	for phases := 0; phases < 100; phases++ {
+		sum := 0
+		for i := len(output) - 1; i >= 0; i-- {
+			sum += output[i]
+			output[i] = sum % 10
+		}
+	}
+
+	return output
+}
+
 func main() {
 	file, err := os.Open("../../data/day16.txt")
 
@@ -95,13 +114,8 @@ func main() {
 	}
 
 	var result = runFFT(input, pattern)
-
 	fmt.Println("Part1:", result[0:8])
 
-	// input = strings.Repeat(input, 10000)
-
-	// result = runFFT(input, pattern)
-	// offset, _ := strconv.Atoi(result[0:7])
-
-	// fmt.Println("Part2:", result[offset:offset+8])
+	var result2 = part2(input)
+	fmt.Println("Part2:", result2[0:8])
 }
