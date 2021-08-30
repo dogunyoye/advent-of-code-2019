@@ -498,6 +498,35 @@ func aStarSearch(startPos position, endPos position) int {
 	return -1
 }
 
+func fillWithOxygen(oxygenPos position) int {
+	open := []position{}
+	closed := make(map[position]struct{})
+
+	open = append(open, oxygenPos)
+	var minutes = 0
+
+	for len(open) > 0 {
+		var toRemove = []position{}
+		for _, p := range open {
+			toRemove = append(toRemove, p)
+			currentNeighbours := neighbours(p)
+			for _, n := range currentNeighbours {
+				if _, exists := closed[n]; !exists {
+					open = append(open, n)
+				}
+			}
+			closed[p] = struct{}{}
+		}
+		minutes++
+
+		for _, r := range toRemove {
+			open = remove(open, r)
+		}
+	}
+
+	return minutes
+}
+
 func main() {
 
 	var program = copyArray(generateProgram())
@@ -509,4 +538,5 @@ func main() {
 	relativeBase = 0
 
 	fmt.Println("Part1:", aStarSearch(startPos, oxygenPos))
+	fmt.Println("Part2:", fillWithOxygen(oxygenPos))
 }
