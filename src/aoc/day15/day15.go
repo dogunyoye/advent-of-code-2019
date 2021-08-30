@@ -409,8 +409,7 @@ func neighbours(currentPos position) []position {
 			pos = position{currentPos.X, currentPos.Y - 1}
 		}
 
-		val, exists := spaceship[pos]
-		if exists && (val != "#") {
+		if val, exists := spaceship[pos]; exists && (val != "#") {
 			neighbours = append(neighbours, pos)
 		}
 	}
@@ -418,7 +417,7 @@ func neighbours(currentPos position) []position {
 	return neighbours
 }
 
-func calculatePath(lastCheckedNode position, previous map[position]position) int {
+func calculatePath(lastCheckedNode position, previous map[position]position) []position {
 	var path = []position{}
 	var temp = lastCheckedNode
 
@@ -428,12 +427,12 @@ func calculatePath(lastCheckedNode position, previous map[position]position) int
 			path = append(path, prev)
 			temp = prev
 		} else {
-			return len(path)
+			return path
 		}
 	}
 }
 
-func aStarSearch(startPos position, endPos position) int {
+func aStarSearch(startPos position, endPos position) []position {
 	var openSet = []position{}
 	var closedSet = []position{}
 	var lastCheckedNode = startPos
@@ -495,7 +494,7 @@ func aStarSearch(startPos position, endPos position) int {
 	}
 
 	// no solution!
-	return -1
+	return []position{}
 }
 
 func fillWithOxygen(oxygenPos position) int {
@@ -537,6 +536,8 @@ func main() {
 	memPointer = 0
 	relativeBase = 0
 
-	fmt.Println("Part1:", aStarSearch(startPos, oxygenPos))
+	path := aStarSearch(startPos, oxygenPos)
+
+	fmt.Println("Part1:", len(path))
 	fmt.Println("Part2:", fillWithOxygen(oxygenPos))
 }
