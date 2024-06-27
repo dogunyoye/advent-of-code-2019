@@ -99,17 +99,6 @@ func findKeys(arena map[position]rune) int {
 	return keys
 }
 
-func arenaToString(arena map[position]rune, depth int, width int) string {
-	result := ""
-	for i := 0; i < depth; i += 1 {
-		for j := 0; j < width; j += 1 {
-			p := position{i, j}
-			result += string(arena[p])
-		}
-	}
-	return result
-}
-
 func f(in rune) int {
 	return int(in - 'a' + 1)
 }
