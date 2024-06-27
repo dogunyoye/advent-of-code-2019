@@ -6,7 +6,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"strconv"
 	"unicode"
 )
 
@@ -16,6 +15,7 @@ type position struct {
 }
 
 type positionState struct {
+	key   rune
 	pos   position
 	steps int
 }
@@ -104,7 +104,6 @@ func f(in rune) int {
 }
 
 func setBit(n int64, pos int) int64 {
-	fmt.Println("setting:", pos)
 	n |= (1 << pos)
 	return n
 }
@@ -112,8 +111,13 @@ func setBit(n int64, pos int) int64 {
 func collectKeys(arena map[position]rune, depth int, width int, startState positionState, heldKeys int64, memo map[state]int) int {
 
 	res, exists := memo[state{startState.pos, heldKeys}]
-	if exists {
-		return res
+	if exists && res < startState.steps {
+		if res < startState.steps {
+			return res
+		} else {
+			memo[state{startState.pos, heldKeys}] = startState.steps
+		}
+		//fmt.Println("hit:", startState.pos, startState.steps, res)
 	}
 
 	if findKeys(arena) == 0 {
@@ -123,7 +127,7 @@ func collectKeys(arena map[position]rune, depth int, width int, startState posit
 	queue := make([]positionState, 0)
 	visited := map[position]struct{}{}
 
-	keys := make(map[rune]positionState)
+	foundKeys := make([]positionState, 0)
 
 	queue = append(queue, startState)
 	visited[startState.pos] = struct{}{}
@@ -138,52 +142,47 @@ func collectKeys(arena map[position]rune, depth int, width int, startState posit
 		currentPosition := currentPositionState.pos
 		currentSteps := currentPositionState.steps
 
-		if isDoor(arena[currentPosition]) {
-			continue
-		}
-
 		neighbours := [4]position{{-1, 0}, {0, 1}, {1, 0}, {0, -1}}
+
 		for _, n := range neighbours {
 			nextPosition := position{currentPosition.i + n.i, currentPosition.j + n.j}
 			value := arena[nextPosition]
 			_, exists := visited[nextPosition]
 
-			if value == '#' {
+			if value == '#' || isDoor(arena[nextPosition]) {
 				continue
 			}
 
 			if !exists {
 				visited[nextPosition] = struct{}{}
 				if isDoorKey(value) {
-					keys[value] = positionState{nextPosition, currentSteps + 1}
+					foundKeys = append(foundKeys, positionState{value, nextPosition, currentSteps + 1})
 				} else {
-					queue = append(queue, positionState{nextPosition, currentSteps + 1})
+					queue = append(queue, positionState{-1, nextPosition, currentSteps + 1})
 				}
 			}
 		}
 	}
 
-	if len(keys) != 0 {
-		for k, v := range keys {
-			//fmt.Printf("%c\n", k)
-			//path += string(k)
-			newArena := unlockDoorIfPresent(k, arena)
-			newState := state{v.pos, heldKeys}
+	for _, k := range foundKeys {
+		//fmt.Printf("%c\n", k)
+		//path += string(k)
+		newArena := unlockDoorIfPresent(k.key, arena)
+		var newHeldKeys = setBit(heldKeys, f(k.key))
+		newState := state{k.pos, newHeldKeys}
+		//printMap(newArena, depth, width)
 
-			result := collectKeys(newArena, depth, width, v, heldKeys, memo)
-			//path = path[:len(path)-1]
-			memo[newState] = result
+		result := collectKeys(newArena, depth, width, k, newHeldKeys, memo)
+		//path = path[:len(path)-1]
+		memo[newState] = result
 
-			//fmt.Println("RESULT:", result)
-			if result < distance {
-				distance = result
-			}
+		//fmt.Println("RESULT:", result)
+		if result < distance {
+			distance = result
 		}
-
-		return distance
 	}
 
-	return startState.steps
+	return distance
 }
 
 func findShortestPathToCollectAllKeys() int {
@@ -193,14 +192,7 @@ func findShortestPathToCollectAllKeys() int {
 	memo := make(map[state]int)
 	keys := int64(0)
 
-	fmt.Println("HERE:", f('a'))
-	keys = setBit(keys, f('a'))
-	keys = setBit(keys, f('b'))
-	keys = setBit(keys, f('f'))
-	keys = setBit(keys, f('g'))
-	fmt.Println(strconv.FormatInt(keys, 2))
-
-	result := collectKeys(arena, depth, width, positionState{start, 0}, keys, memo)
+	result := collectKeys(arena, depth, width, positionState{-1, start, 0}, keys, memo)
 	fmt.Println("debug:", memo)
 	return result
 }
