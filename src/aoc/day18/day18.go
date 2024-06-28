@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strings"
 	"unicode"
 )
 
@@ -15,14 +16,14 @@ type position struct {
 }
 
 type positionState struct {
-	key   rune
+	keys  string
 	pos   position
 	steps int
 }
 
 type state struct {
 	pos  position
-	keys int64
+	keys string
 }
 
 func printMap(arena map[position]rune, depth int, width int) {
@@ -33,20 +34,6 @@ func printMap(arena map[position]rune, depth int, width int) {
 		}
 		fmt.Println(line)
 	}
-}
-
-func unlockDoorIfPresent(key rune, arena map[position]rune) map[position]rune {
-	newArena := make(map[position]rune)
-	for k, v := range arena {
-		p := position{k.i, k.j}
-		if v == key || v == unicode.ToUpper(key) {
-			newArena[p] = '.'
-		} else {
-			newArena[p] = v
-		}
-	}
-
-	return newArena
 }
 
 func buildMap() (map[position]rune, int, int, position) {
@@ -89,50 +76,45 @@ func isDoorKey(value rune) bool {
 	return value >= 97 && value <= 122
 }
 
-func findKeys(arena map[position]rune) int {
+func replaceAtIndex(in string, r rune, i int) string {
+	out := []rune(in)
+	out[i] = r
+	return string(out)
+}
+
+func findKeys(arena map[position]rune) (int, string) {
 	keys := 0
+	heldKeys := strings.Repeat("0", 26)
 	for _, v := range arena {
 		if isDoorKey(v) {
 			keys += 1
+			heldKeys = replaceAtIndex(heldKeys, '1', f(v))
 		}
 	}
-	return keys
+	return keys, heldKeys
 }
 
 func f(in rune) int {
-	return int(in - 'a' + 1)
+	return int(in - 'a')
 }
 
-func setBit(n int64, pos int) int64 {
-	n |= (1 << pos)
-	return n
+func obtainKey(keys string, pos int) string {
+	return replaceAtIndex(keys, '1', pos)
 }
 
-func collectKeys(arena map[position]rune, depth int, width int, startState positionState, heldKeys int64, memo map[state]int) int {
+func hasKey(keys string, k int) bool {
+	return keys[k] == '1'
+}
 
-	res, exists := memo[state{startState.pos, heldKeys}]
-	if exists && res < startState.steps {
-		if res < startState.steps {
-			return res
-		} else {
-			memo[state{startState.pos, heldKeys}] = startState.steps
-		}
-		//fmt.Println("hit:", startState.pos, startState.steps, res)
-	}
-
-	if findKeys(arena) == 0 {
-		return startState.steps
-	}
-
+func collectKeys(arena map[position]rune, startState positionState) int {
 	queue := make([]positionState, 0)
-	visited := map[position]struct{}{}
-
-	foundKeys := make([]positionState, 0)
+	visited := map[state]struct{}{}
 
 	queue = append(queue, startState)
-	visited[startState.pos] = struct{}{}
+	visited[state{startState.pos, strings.Repeat("0", 26)}] = struct{}{}
 
 	distance := math.MaxUint32
+	_, allKeys := findKeys(arena)
 
 	for len(queue) != 0 {
 
@@ -141,44 +123,40 @@ func collectKeys(arena map[position]rune, depth int, width int, startState posit
 
 		currentPosition := currentPositionState.pos
 		currentSteps := currentPositionState.steps
+		currentKeys := currentPositionState.keys
+
+		if currentKeys == allKeys {
+			if currentSteps < distance {
+				distance = currentSteps
+			}
+			continue
+		}
 
 		neighbours := [4]position{{-1, 0}, {0, 1}, {1, 0}, {0, -1}}
 
 		for _, n := range neighbours {
 			nextPosition := position{currentPosition.i + n.i, currentPosition.j + n.j}
-			value := arena[nextPosition]
-			_, exists := visited[nextPosition]
+			nextKeys := currentKeys
+			nextState := state{nextPosition, nextKeys}
 
-			if value == '#' || isDoor(arena[nextPosition]) {
+			value := arena[nextPosition]
+			if value == '#' {
 				continue
 			}
 
+			_, exists := visited[nextState]
 			if !exists {
-				visited[nextPosition] = struct{}{}
 				if isDoorKey(value) {
-					foundKeys = append(foundKeys, positionState{value, nextPosition, currentSteps + 1})
+					nextKeys = obtainKey(nextKeys, f(value))
+					queue = append(queue, positionState{nextKeys, nextPosition, currentSteps + 1})
+					visited[state{nextPosition, nextKeys}] = struct{}{}
 				} else {
-					queue = append(queue, positionState{-1, nextPosition, currentSteps + 1})
+					if (isDoor(value) && hasKey(nextKeys, f(unicode.ToLower(value)))) || value == '.' {
+						queue = append(queue, positionState{nextKeys, nextPosition, currentSteps + 1})
+						visited[state{nextPosition, nextKeys}] = struct{}{}
+					}
 				}
 			}
-		}
-	}
-
-	for _, k := range foundKeys {
-		//fmt.Printf("%c\n", k)
-		//path += string(k)
-		newArena := unlockDoorIfPresent(k.key, arena)
-		var newHeldKeys = setBit(heldKeys, f(k.key))
-		newState := state{k.pos, newHeldKeys}
-		//printMap(newArena, depth, width)
-
-		result := collectKeys(newArena, depth, width, k, newHeldKeys, memo)
-		//path = path[:len(path)-1]
-		memo[newState] = result
-
-		//fmt.Println("RESULT:", result)
-		if result < distance {
-			distance = result
 		}
 	}
 
@@ -186,14 +164,9 @@ func collectKeys(arena map[position]rune, depth int, width int, startState posit
 }
 
 func findShortestPathToCollectAllKeys() int {
-	arena, depth, width, start := buildMap()
-	printMap(arena, depth, width)
-
-	memo := make(map[state]int)
-	keys := int64(0)
-
-	result := collectKeys(arena, depth, width, positionState{-1, start, 0}, keys, memo)
-	fmt.Println("debug:", memo)
+	arena, _, _, start := buildMap()
+	keys := strings.Repeat("0", 26)
+	result := collectKeys(arena, positionState{keys, start, 0})
 	return result
 }
 
