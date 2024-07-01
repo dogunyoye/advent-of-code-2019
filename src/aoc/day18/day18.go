@@ -26,10 +26,15 @@ type state struct {
 	keys string
 }
 
-func printMap(arena map[position]rune, depth int, width int) {
-	for i := 0; i < depth; i++ {
+type quadrant struct {
+	arena map[position]rune
+	keys  string
+}
+
+func printMap(arena map[position]rune, depthStart int, depthEnd int, widthStart int, widthEnd int) {
+	for i := depthStart; i < depthEnd; i++ {
 		line := ""
-		for j := 0; j < width; j++ {
+		for j := widthStart; j < widthEnd; j++ {
 			line += string(arena[position{i, j}])
 		}
 		fmt.Println(line)
@@ -66,6 +71,39 @@ func buildMap() (map[position]rune, int, int, position) {
 	}
 
 	return arena, i, width + 1, start
+}
+
+func buildModifiedMap() (map[position]rune, int, int, []position) {
+	arena, depth, width, start := buildMap()
+	startPositions := make([]position, 0)
+
+	arena[start] = '#'
+	neighbours := [4]position{{-1, 0}, {0, 1}, {1, 0}, {0, -1}}  // N, E, S, W
+	diagonals := [4]position{{-1, -1}, {-1, 1}, {1, 1}, {1, -1}} // NW, NE, SE, SW
+
+	for _, n := range neighbours {
+		p := position{start.i + n.i, start.j + n.j}
+		arena[p] = '#'
+	}
+
+	for _, n := range diagonals {
+		startPositions = append(startPositions, position{start.i + n.i, start.j + n.j})
+	}
+
+	return arena, depth, width, startPositions
+}
+
+func buildQuadrant(arena map[position]rune, depthStart int, depthEnd, widthStart int, widthEnd int) map[position]rune {
+	quadrantArena := make(map[position]rune)
+
+	for i := depthStart; i < depthEnd; i++ {
+		for j := widthStart; j < widthEnd; j++ {
+			p := position{i, j}
+			quadrantArena[p] = arena[p]
+		}
+	}
+
+	return quadrantArena
 }
 
 func isDoor(value rune) bool {
@@ -170,6 +208,35 @@ func findShortestPathToCollectAllKeys() int {
 	return result
 }
 
+func findShortestPathToCollectAllKeysWithFourRobots() int {
+	arena, depth, width, startPositions := buildModifiedMap()
+	printMap(arena, 0, depth, 0, width)
+	fmt.Println(startPositions)
+
+	//quadrants := make([]map[position]rune, 0)
+	halfDepth := int(math.Round(float64(depth) / 2))
+	halfWidth := int(math.Round(float64(width) / 2))
+
+	fmt.Println(halfDepth)
+	fmt.Println(halfWidth)
+
+	quadrantDimensions := [][]int{
+		{0, halfDepth, 0, halfWidth},
+		{0, halfDepth, halfWidth - 1, width},
+		{halfDepth - 1, depth, halfWidth - 1, width},
+		{halfDepth - 1, depth, 0, halfWidth},
+	}
+
+	for _, d := range quadrantDimensions {
+		q := buildQuadrant(arena, d[0], d[1], d[2], d[3])
+		printMap(q, d[0], d[1], d[2], d[3])
+		fmt.Println(d)
+	}
+
+	return 0
+}
+
 func main() {
 	fmt.Println("Part1:", findShortestPathToCollectAllKeys())
+	fmt.Println("Part2:", findShortestPathToCollectAllKeysWithFourRobots())
 }
