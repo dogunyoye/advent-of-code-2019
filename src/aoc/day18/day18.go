@@ -27,10 +27,103 @@ type state struct {
 }
 
 type quadrant struct {
-	arena map[position]rune
-	keys  string
+	arena     map[position]rune
+	queue     []positionState
+	visited   map[state]struct{}
+	keys      string
+	steps     int
+	completed bool
 }
 
+func (q *quadrant) isPathAvailable() bool {
+	seen := map[positionState]struct{}{}
+
+	for {
+		currentPositionState := q.queue[0]
+		_, exists := seen[currentPositionState]
+		if exists {
+			return false
+		}
+
+		seen[currentPositionState] = struct{}{}
+
+		currentPosition := currentPositionState.pos
+		currentValue := q.arena[currentPosition]
+		currentKeys := currentPositionState.keys
+
+		if !isDoor(currentValue) || (isDoor(currentValue) && hasKey(currentKeys, f(unicode.ToLower(currentValue)))) {
+			return true
+		}
+
+		q.queue = q.queue[1:]
+		q.queue = append(q.queue, currentPositionState)
+	}
+}
+
+func (q *quadrant) explore(doorsInQuadrants map[rune]*quadrant) bool {
+
+	if q.completed {
+		return false
+	}
+
+	_, allKeys := findKeys(q.arena)
+
+	for len(q.queue) != 0 {
+
+		if !q.isPathAvailable() {
+			return true
+		}
+
+		currentPositionState := q.queue[0]
+		q.queue = q.queue[1:]
+
+		currentPosition := currentPositionState.pos
+		currentSteps := currentPositionState.steps
+		currentKeys := currentPositionState.keys
+
+		if hasAllArenaKeys(currentKeys, allKeys) {
+			q.steps = currentSteps
+			q.completed = true
+			return false
+		}
+
+		neighbours := [4]position{{-1, 0}, {0, 1}, {1, 0}, {0, -1}}
+
+		for _, n := range neighbours {
+			nextPosition := position{currentPosition.i + n.i, currentPosition.j + n.j}
+			nextKeys := currentKeys
+			nextState := state{nextPosition, nextKeys}
+
+			value := q.arena[nextPosition]
+			if value == '#' {
+				continue
+			}
+
+			_, exists := q.visited[nextState]
+			if !exists {
+				if isDoorKey(value) {
+					nextKeys = obtainAndDistributeDoorKey(q, doorsInQuadrants, nextKeys, value)
+					q.queue = append(q.queue, positionState{nextKeys, nextPosition, currentSteps + 1})
+					q.visited[state{nextPosition, nextKeys}] = struct{}{}
+				} else {
+					if isDoor(value) || value == '.' {
+						q.queue = append(q.queue, positionState{nextKeys, nextPosition, currentSteps + 1})
+						q.visited[state{nextPosition, nextKeys}] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+
+	if q.steps == -1 {
+		panic("No solution!")
+	}
+
+	q.completed = true
+	return false
+}
+
+//lint:ignore U1000 Ignore unused function temporarily for debugging
 func printMap(arena map[position]rune, depthStart int, depthEnd int, widthStart int, widthEnd int) {
 	for i := depthStart; i < depthEnd; i++ {
 		line := ""
@@ -93,7 +186,7 @@ func buildModifiedMap() (map[position]rune, int, int, []position) {
 	return arena, depth, width, startPositions
 }
 
-func buildQuadrant(arena map[position]rune, depthStart int, depthEnd, widthStart int, widthEnd int) map[position]rune {
+func buildQuadrant(arena map[position]rune, depthStart int, depthEnd, widthStart int, widthEnd int, start position) quadrant {
 	quadrantArena := make(map[position]rune)
 
 	for i := depthStart; i < depthEnd; i++ {
@@ -103,7 +196,14 @@ func buildQuadrant(arena map[position]rune, depthStart int, depthEnd, widthStart
 		}
 	}
 
-	return quadrantArena
+	emptyKeys := strings.Repeat("0", 26)
+	queue := make([]positionState, 0)
+	visited := map[state]struct{}{}
+
+	queue = append(queue, positionState{emptyKeys, start, 0})
+	visited[state{start, strings.Repeat("0", 26)}] = struct{}{}
+
+	return quadrant{quadrantArena, queue, visited, emptyKeys, -1, false}
 }
 
 func isDoor(value rune) bool {
@@ -132,12 +232,46 @@ func findKeys(arena map[position]rune) (int, string) {
 	return keys, heldKeys
 }
 
+func findDoors(arena map[position]rune) []rune {
+	doors := make([]rune, 0)
+	for _, v := range arena {
+		if isDoor(v) {
+			doors = append(doors, v)
+		}
+	}
+	return doors
+}
+
+func hasAllArenaKeys(currentKeys string, arenaKeys string) bool {
+	for i, c := range arenaKeys {
+		if c == '1' && currentKeys[i] != '1' {
+			return false
+		}
+	}
+	return true
+}
+
 func f(in rune) int {
 	return int(in - 'a')
 }
 
-func obtainKey(keys string, pos int) string {
+func obtainDoorKey(keys string, pos int) string {
 	return replaceAtIndex(keys, '1', pos)
+}
+
+func obtainAndDistributeDoorKey(currentQuadrant *quadrant, doorsInQuadrants map[rune]*quadrant, keys string, doorKey rune) string {
+	for k, v := range doorsInQuadrants {
+		if v == currentQuadrant {
+			continue
+		}
+
+		if k == unicode.ToUpper(doorKey) {
+			for i := range v.queue {
+				v.queue[i].keys = obtainDoorKey(v.queue[i].keys, f(doorKey))
+			}
+		}
+	}
+	return obtainDoorKey(keys, f(doorKey))
 }
 
 func hasKey(keys string, k int) bool {
@@ -185,7 +319,7 @@ func collectKeys(arena map[position]rune, startState positionState) int {
 			_, exists := visited[nextState]
 			if !exists {
 				if isDoorKey(value) {
-					nextKeys = obtainKey(nextKeys, f(value))
+					nextKeys = obtainDoorKey(nextKeys, f(value))
 					queue = append(queue, positionState{nextKeys, nextPosition, currentSteps + 1})
 					visited[state{nextPosition, nextKeys}] = struct{}{}
 				} else {
@@ -210,15 +344,12 @@ func findShortestPathToCollectAllKeys() int {
 
 func findShortestPathToCollectAllKeysWithFourRobots() int {
 	arena, depth, width, startPositions := buildModifiedMap()
-	printMap(arena, 0, depth, 0, width)
-	fmt.Println(startPositions)
 
-	//quadrants := make([]map[position]rune, 0)
+	quadrants := make([]*quadrant, 0)
+	doorsInQuadrants := make(map[rune]*quadrant)
+
 	halfDepth := int(math.Round(float64(depth) / 2))
 	halfWidth := int(math.Round(float64(width) / 2))
-
-	fmt.Println(halfDepth)
-	fmt.Println(halfWidth)
 
 	quadrantDimensions := [][]int{
 		{0, halfDepth, 0, halfWidth},
@@ -227,13 +358,32 @@ func findShortestPathToCollectAllKeysWithFourRobots() int {
 		{halfDepth - 1, depth, 0, halfWidth},
 	}
 
-	for _, d := range quadrantDimensions {
-		q := buildQuadrant(arena, d[0], d[1], d[2], d[3])
-		printMap(q, d[0], d[1], d[2], d[3])
-		fmt.Println(d)
+	for i, d := range quadrantDimensions {
+		var q = buildQuadrant(arena, d[0], d[1], d[2], d[3], startPositions[i])
+		quadrants = append(quadrants, &q)
+
+		for _, d := range findDoors(q.arena) {
+			doorsInQuadrants[d] = &q
+		}
 	}
 
-	return 0
+	for {
+		allComplete := true
+		for i := range quadrants {
+			if quadrants[i].explore(doorsInQuadrants) {
+				allComplete = false
+			}
+		}
+
+		if allComplete {
+			var result = 0
+			for _, r := range quadrants {
+				result += r.steps
+			}
+
+			return result
+		}
+	}
 }
 
 func main() {
