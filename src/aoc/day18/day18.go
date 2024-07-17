@@ -60,7 +60,7 @@ func (q *quadrant) isPathAvailable() bool {
 	}
 }
 
-func (q *quadrant) explore(doorsInQuadrants map[rune]*quadrant) bool {
+func (q *quadrant) collectKeys(doorsInQuadrants map[rune]*quadrant) bool {
 
 	if q.completed {
 		return false
@@ -359,26 +359,26 @@ func findShortestPathToCollectAllKeysWithFourRobots() int {
 	}
 
 	for i, d := range quadrantDimensions {
-		var q = buildQuadrant(arena, d[0], d[1], d[2], d[3], startPositions[i])
-		quadrants = append(quadrants, &q)
+		var quadrant = buildQuadrant(arena, d[0], d[1], d[2], d[3], startPositions[i])
+		quadrants = append(quadrants, &quadrant)
 
-		for _, d := range findDoors(q.arena) {
-			doorsInQuadrants[d] = &q
+		for _, d := range findDoors(quadrant.arena) {
+			doorsInQuadrants[d] = &quadrant
 		}
 	}
 
 	for {
 		allComplete := true
 		for i := range quadrants {
-			if quadrants[i].explore(doorsInQuadrants) {
+			if quadrants[i].collectKeys(doorsInQuadrants) {
 				allComplete = false
 			}
 		}
 
 		if allComplete {
 			var result = 0
-			for _, r := range quadrants {
-				result += r.steps
+			for _, quadrant := range quadrants {
+				result += quadrant.steps
 			}
 
 			return result
