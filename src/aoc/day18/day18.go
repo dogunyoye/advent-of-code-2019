@@ -81,7 +81,7 @@ func (q *quadrant) explore(doorsInQuadrants map[rune]*quadrant) bool {
 		currentSteps := currentPositionState.steps
 		currentKeys := currentPositionState.keys
 
-		if hasAllArenaKeys(currentKeys, allKeys) {
+		if hasAllKeysInQuadrant(currentKeys, allKeys) {
 			q.steps = currentSteps
 			q.completed = true
 			return false
@@ -242,7 +242,7 @@ func findDoors(arena map[position]rune) []rune {
 	return doors
 }
 
-func hasAllArenaKeys(currentKeys string, arenaKeys string) bool {
+func hasAllKeysInQuadrant(currentKeys string, arenaKeys string) bool {
 	for i, c := range arenaKeys {
 		if c == '1' && currentKeys[i] != '1' {
 			return false
