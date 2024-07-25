@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"strconv"
 	"strings"
@@ -78,7 +79,50 @@ func applyShuffling(cards []int64, instructions []instruction) []int64 {
 	return cards
 }
 
-func main() {
+func modInv(n *big.Int, cards *big.Int) *big.Int {
+	return big.NewInt(0).Exp(n, big.NewInt(cards.Int64()-2), cards)
+}
+
+func applyReverseInstructionShuffling(instructions []instruction, cards *big.Int) (*big.Int, *big.Int) {
+	incrementMul := big.NewInt(1)
+	offsetDiff := big.NewInt(0)
+
+	for _, i := range instructions {
+		switch i.op {
+		case dealIntoStack:
+			incrementMul.Mul(incrementMul, big.NewInt(-1))
+			incrementMul.Mod(incrementMul, cards)
+			offsetDiff.Add(offsetDiff, incrementMul)
+			offsetDiff.Mod(offsetDiff, cards)
+		case cut:
+			num := big.NewInt(int64(i.number))
+			offsetDiff.Add(offsetDiff, num.Mul(num, incrementMul))
+			offsetDiff.Mod(offsetDiff, cards)
+		case dealWithIncrement:
+			num := big.NewInt(int64(i.number))
+			incrementMul.Mul(incrementMul, modInv(num, cards))
+			incrementMul.Mod(incrementMul, cards)
+		}
+	}
+
+	return incrementMul, offsetDiff
+}
+
+func getSequence(iterations *big.Int, cards *big.Int, incrementMul *big.Int, offsetDiff *big.Int) (*big.Int, *big.Int) {
+	increment := big.NewInt(0)
+	increment.Exp(incrementMul, iterations, cards)
+
+	offset := big.NewInt(1)
+	one := big.NewInt(1)
+	inverse := modInv(one.Sub(one, incrementMul).Mod(one, cards), cards)
+
+	offset.Mul(offset, offsetDiff.Mul(offsetDiff, big.NewInt(1-increment.Int64())).Mul(offsetDiff, inverse))
+	offset.Mod(offset, cards)
+
+	return increment, offset
+}
+
+func buildInstructions() []instruction {
 	file, err := os.Open("../../data/day22.txt")
 
 	if err != nil {
@@ -110,17 +154,18 @@ func main() {
 	}
 
 	file.Close()
+	return instructions
+}
 
-	//fmt.Println(instructions)
+func findPositionOfCard2019() int {
+	instructions := buildInstructions()
 
 	var cards = []int64{}
-
 	for x := int64(0); x < 10007; x++ {
 		cards = append(cards, x)
 	}
 
 	cards = applyShuffling(cards, instructions)
-
 	position := 0
 
 	for i, x := range cards {
@@ -130,5 +175,26 @@ func main() {
 		}
 	}
 
-	fmt.Println("Part1:", position)
+	return position
+}
+
+// https://www.reddit.com/r/adventofcode/comments/ee0rqi/comment/fbnkaju/
+// https://github.com/mcpower/adventofcode/blob/501b66084b0060e0375fc3d78460fb549bc7dfab/2019/22/a-improved.py
+func findNumberOnCardAtPosition2020() *big.Int {
+	instructions := buildInstructions()
+	cards := big.NewInt(int64(119315717514047))
+	iterations := big.NewInt(int64(101741582076661))
+
+	incrementMul, offsetDiff := applyReverseInstructionShuffling(instructions, cards)
+	increment, offset := getSequence(iterations, cards, incrementMul, offsetDiff)
+
+	increment.Mul(increment, big.NewInt(2020))
+	offset.Add(offset, increment)
+	offset.Mod(offset, cards)
+	return offset
+}
+
+func main() {
+	fmt.Println("Part1:", findPositionOfCard2019())
+	fmt.Println("Part2:", findNumberOnCardAtPosition2020())
 }
