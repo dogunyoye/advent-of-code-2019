@@ -13,19 +13,15 @@ type intcodeComputer struct {
 	id           int
 	program      []int64
 	memPointer   int64
-	output       int64
+	output       []int64
 	relativeBase int64
-	queue        []packet
+	queue        []int64
+	initialised  bool
 }
 
-type packet struct {
-	x int64
-	y int64
-}
-
-func setInput() int64 {
-	var input = int64(0)
-	return input
+type nat struct {
+	currentPacket  []int64
+	previousPacket []int64
 }
 
 func (computer *intcodeComputer) runOpcodeForParameterMode(opcode int64, opcodeIndex int64) int {
@@ -63,7 +59,14 @@ func (computer *intcodeComputer) runOpcodeForParameterMode(opcode int64, opcodeI
 	// input instruction
 	if opcode == 3 {
 
-		input := setInput()
+		var input = int64(-1)
+		if !computer.initialised {
+			input = int64(computer.id)
+			computer.initialised = true
+		} else if len(computer.queue) != 0 {
+			input = computer.queue[0]
+			computer.queue = computer.queue[1:]
+		}
 
 		if paramMode0 == 0 { // position mode
 			computer.program[computer.program[opcodeIndex]] = input
@@ -82,12 +85,12 @@ func (computer *intcodeComputer) runOpcodeForParameterMode(opcode int64, opcodeI
 	} else if paramMode0 == 2 { // relative mode
 		firstOperand = computer.program[computer.program[opcodeIndex]+computer.relativeBase]
 	} else {
-		fmt.Println("Unknown first param mode:", paramMode0)
+		panic("Unknown first param mode: " + string(paramMode0))
 	}
 
 	// output instruction
 	if opcode == 4 {
-		computer.output = firstOperand
+		computer.output = append(computer.output, firstOperand)
 		return 2
 	}
 
@@ -106,7 +109,7 @@ func (computer *intcodeComputer) runOpcodeForParameterMode(opcode int64, opcodeI
 	} else if paramMode1 == 2 { // relative mode
 		secondOperand = computer.program[computer.program[opcodeIndex]+computer.relativeBase]
 	} else {
-		fmt.Println("Unknown second param mode:", paramMode1)
+		panic("Unknown second param mode: " + string(paramMode1))
 	}
 
 	opcodeIndex++
@@ -197,9 +200,12 @@ func (computer *intcodeComputer) runOpcode(opcode int64, opcodeIndex int64, prog
 	return 4
 }
 
-func (computer *intcodeComputer) runDiagnosticProgram() {
+func (computer *intcodeComputer) runDiagnosticProgram(computers []*intcodeComputer, n *nat) (int64, bool) {
 	opcode := computer.program[computer.memPointer]
 	opcodeJump := 0
+
+	var emptyCount = 0
+	var sentPackets = 0
 
 	for {
 		opcodeJump = 2
@@ -210,9 +216,35 @@ func (computer *intcodeComputer) runDiagnosticProgram() {
 		case 2:
 			opcodeJump = computer.runOpcode(opcode, computer.memPointer, computer.program)
 		case 3:
-			computer.program[computer.program[computer.memPointer+1]] = setInput()
+			if !computer.initialised {
+				computer.program[computer.program[computer.memPointer+1]] = int64(computer.id)
+				computer.initialised = true
+				break
+			}
+
+			if len(computer.queue) == 0 {
+				computer.program[computer.program[computer.memPointer+1]] = -1
+
+				// bit of a hack?
+				// noticed that after the second -1 input
+				// the computer has sent all packets it can
+				emptyCount += 1
+				if n == nil && emptyCount == 2 {
+					return -1, false
+				}
+
+				// if the computer sees 2 consectutive receive request
+				// where the computer has nothing to input, we can say
+				// it's network is idle
+				if n != nil && emptyCount == 2 {
+					return -1, sentPackets == 0
+				}
+			} else {
+				computer.program[computer.program[computer.memPointer+1]] = computer.queue[0]
+				computer.queue = computer.queue[1:]
+			}
 		case 4:
-			computer.output = computer.program[computer.program[computer.memPointer+1]]
+			computer.output = append(computer.output, computer.program[computer.program[computer.memPointer+1]])
 		case 5:
 			fallthrough
 		case 6:
@@ -224,13 +256,31 @@ func (computer *intcodeComputer) runDiagnosticProgram() {
 		case 9:
 			computer.relativeBase += computer.program[computer.program[computer.memPointer+1]]
 		case 99:
-			return
+			panic("Unexpected halt")
 		default:
 			opcodeJump = computer.runOpcodeForParameterMode(opcode, computer.memPointer)
 		}
 
 		computer.memPointer += int64(opcodeJump)
 		opcode = computer.program[computer.memPointer]
+
+		if len(computer.output) == 3 {
+			sentPackets += 1
+			address, x, y := computer.output[0], computer.output[1], computer.output[2]
+
+			if address == 255 {
+				if n == nil {
+					return y, true
+				}
+
+				n.currentPacket[0] = x
+				n.currentPacket[1] = y
+			} else {
+				computers[address].queue = append(computers[address].queue, x, y)
+			}
+
+			computer.output = make([]int64, 0)
+		}
 	}
 }
 
@@ -245,7 +295,7 @@ func copyArray(array []int64) []int64 {
 }
 
 func generateProgram() []int64 {
-	file, err := os.Open("../../data/day21.txt")
+	file, err := os.Open("../../data/day23.txt")
 
 	if err != nil {
 		log.Fatalf("failed opening file: %s", err)
@@ -277,16 +327,63 @@ func generateProgram() []int64 {
 	return program
 }
 
-func findYValueOfFirstPacketSentToAddress255() int {
-	computers := make([]*intcodeComputer, 0)
+func findYValueOfFirstPacketSentToAddress255() int64 {
+	computers := make([]*intcodeComputer, 50)
 	for i := 0; i < 50; i++ {
-		c := intcodeComputer{i, copyArray(generateProgram()), int64(0), int64(0), int64(0), make([]packet, 0)}
-		computers = append(computers, &c)
+		var c = intcodeComputer{i, copyArray(generateProgram()), int64(0), make([]int64, 0), int64(0), make([]int64, 0), false}
+		computers[i] = &c
 	}
 
-	return 0
+	for {
+		for i := range computers {
+			val, terminate := computers[i].runDiagnosticProgram(computers, nil)
+			if terminate {
+				return val
+			}
+		}
+	}
+}
+
+func findFirstYValueSentByNatTwiceInARow() int64 {
+	computers := make([]*intcodeComputer, 50)
+	for i := 0; i < 50; i++ {
+		var c = intcodeComputer{i, copyArray(generateProgram()), int64(0), make([]int64, 0), int64(0), make([]int64, 0), false}
+		computers[i] = &c
+	}
+
+	var n = nat{make([]int64, 2), make([]int64, 2)}
+
+	for {
+		idleCount := 0
+		emptyQueueCount := 0
+
+		for i := range computers {
+			_, isIdle := computers[i].runDiagnosticProgram(computers, &n)
+			if isIdle {
+				idleCount += 1
+			}
+		}
+
+		for i := range computers {
+			if len(computers[i].queue) == 0 {
+				emptyQueueCount += 1
+			}
+		}
+
+		if idleCount == len(computers) && emptyQueueCount == len(computers) {
+			computers[0].queue = append(computers[0].queue, n.currentPacket[0], n.currentPacket[1])
+			if len(n.currentPacket) == len(n.previousPacket) && n.currentPacket[1] == n.previousPacket[1] {
+				return n.currentPacket[1]
+			}
+
+			n.previousPacket[0] = n.currentPacket[0]
+			n.previousPacket[1] = n.currentPacket[1]
+			n.currentPacket = make([]int64, 2)
+		}
+	}
 }
 
 func main() {
-
+	fmt.Println("Part1:", findYValueOfFirstPacketSentToAddress255())
+	fmt.Println("Part2:", findFirstYValueSentByNatTwiceInARow())
 }
