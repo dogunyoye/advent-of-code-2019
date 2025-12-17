@@ -84,9 +84,10 @@ func main() {
 	countTwos := 0
 
 	for j := 0; j < len(layerWithLowestZeroes); j++ {
-		if layerWithLowestZeroes[j] == '1' {
+		switch layerWithLowestZeroes[j] {
+		case '1':
 			countOnes++
-		} else if layerWithLowestZeroes[j] == '2' {
+		case '2':
 			countTwos++
 		}
 	}

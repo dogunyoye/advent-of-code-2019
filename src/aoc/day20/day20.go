@@ -101,11 +101,12 @@ func findPortals(arena map[position]rune, depth int, width int) (map[portal]port
 	var end = position{-1, -1}
 
 	for k, v := range portals {
-		if k == "AA" {
+		switch k {
+		case "AA":
 			start = v[0].pos
-		} else if k == "ZZ" {
+		case "ZZ":
 			end = v[0].pos
-		} else {
+		default:
 			edges[v[0]] = v[1]
 			edges[v[1]] = v[0]
 		}

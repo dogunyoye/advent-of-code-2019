@@ -44,9 +44,6 @@ var currentScore = int64(0)
 var gameBall = tile{0, 0, ball}
 var gamePaddle = tile{0, 0, horizontalPaddle}
 
-var blocks = 0
-var scoreOutput = 0
-
 func copyArray(array []int64) []int64 {
 	arrNew := make([]int64, 0)
 	arrNew = append(arrNew, array...)
@@ -63,10 +60,8 @@ func constructTile(output int64) {
 	switch numberOfOutputs {
 	case 1:
 		currentX = output
-		break
 	case 2:
 		currentY = output
-		break
 	case 3:
 		switch output {
 		case 0:
@@ -89,17 +84,17 @@ func constructTile(output int64) {
 			tiles = append(tiles, t)
 		} else {
 			// do stuff
-			if t.typeOfTile == ball {
+			switch t.typeOfTile {
+			case ball:
 				gameBall.X = t.X
 				gameBall.Y = t.Y
-			} else if t.typeOfTile == horizontalPaddle {
+			case horizontalPaddle:
 				gamePaddle.X = t.X
 				gamePaddle.Y = t.Y
 			}
 		}
 
 		numberOfOutputs = 0
-		break
 	}
 }
 
@@ -186,23 +181,25 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64,
 			input = moveJoystick()
 		}
 
-		if paramMode0 == 0 { // position mode
+		switch paramMode0 {
+		case 0: // position mode
 			program[program[opcodeIndex]] = input
-		} else if paramMode0 == 1 { // immediate mode
+		case 1: // immediate mode
 			program[opcodeIndex] = input
-		} else if paramMode0 == 2 { // relative mode
+		case 2: // relative mode
 			program[program[opcodeIndex]+relativeBase] = input
 		}
 		return 2
 	}
 
-	if paramMode0 == 0 { // position mode
+	switch paramMode0 {
+	case 0: // position mode
 		firstOperand = program[program[opcodeIndex]]
-	} else if paramMode0 == 1 { // immediate mode
+	case 1: // immediate mode
 		firstOperand = program[opcodeIndex]
-	} else if paramMode0 == 2 { // relative mode
+	case 2: // relative mode
 		firstOperand = program[program[opcodeIndex]+relativeBase]
-	} else {
+	default:
 		fmt.Println("Unknown first param mode:", paramMode0)
 	}
 
@@ -221,13 +218,14 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64,
 
 	opcodeIndex++
 
-	if paramMode1 == 0 { // position mode
+	switch paramMode1 {
+	case 0: // position mode
 		secondOperand = program[program[opcodeIndex]]
-	} else if paramMode1 == 1 { // immediate mode
+	case 1: // immediate mode
 		secondOperand = program[opcodeIndex]
-	} else if paramMode1 == 2 { // relative mode
+	case 2: // relative mode
 		secondOperand = program[program[opcodeIndex]+relativeBase]
-	} else {
+	default:
 		fmt.Println("Unknown second param mode:", paramMode1)
 	}
 
@@ -236,10 +234,8 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64,
 	switch opcode {
 	case 1:
 		result = firstOperand + secondOperand
-		break
 	case 2:
 		result = firstOperand * secondOperand
-		break
 	case 5:
 		if firstOperand != 0 {
 			memPointer = secondOperand
@@ -268,9 +264,10 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64,
 		}
 	}
 
-	if paramMode2 == 0 {
+	switch paramMode2 {
+	case 0:
 		program[program[opcodeIndex]] = result
-	} else if paramMode2 == 2 {
+	case 2:
 		program[program[opcodeIndex]+relativeBase] = result
 	}
 
@@ -335,7 +332,6 @@ func runDiagnosticProgram(program []int64, input int64) {
 			fallthrough
 		case 2:
 			opcodeJump = runOpcode(opcode, memPointer, program)
-			break
 		case 3:
 			if !part1 {
 				input = moveJoystick()
@@ -352,10 +348,8 @@ func runDiagnosticProgram(program []int64, input int64) {
 			fallthrough
 		case 8:
 			opcodeJump = runOpcode(opcode, memPointer, program)
-			break
 		case 9:
 			relativeBase += program[program[memPointer+1]]
-			break
 		case 99:
 			return
 		default:

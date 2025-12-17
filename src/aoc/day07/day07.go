@@ -165,10 +165,8 @@ func runOpcodeForParameterMode(opcode int, memPointer *int, program []int) int {
 	switch opcode {
 	case 1:
 		result = firstOperand + secondOperand
-		break
 	case 2:
 		result = firstOperand * secondOperand
-		break
 	case 5:
 		if firstOperand != 0 {
 			*memPointer = secondOperand
@@ -265,7 +263,6 @@ func runDiagnosticProgram(phaseSetting int, program []int) {
 			fallthrough
 		case 2:
 			opcodeJump = runOpcode(opcode, &memPointer, program)
-			break
 		case 3:
 			numOfInputs++
 
@@ -285,7 +282,6 @@ func runDiagnosticProgram(phaseSetting int, program []int) {
 			fallthrough
 		case 8:
 			opcodeJump = runOpcode(opcode, &memPointer, program)
-			break
 		case 99:
 			return
 		default:
@@ -315,7 +311,6 @@ func runDiagnosticProgramPart2(phaseSetting int, amp amplifier, wg *sync.WaitGro
 			fallthrough
 		case 2:
 			opcodeJump = runOpcode(opcode, &memPointer, program)
-			break
 		case 3:
 			numOfInputs++
 
@@ -351,7 +346,6 @@ func runDiagnosticProgramPart2(phaseSetting int, amp amplifier, wg *sync.WaitGro
 			fallthrough
 		case 8:
 			opcodeJump = runOpcode(opcode, &memPointer, program)
-			break
 		case 99:
 			atomic.AddInt32(completed, -1)
 			wg.Done()

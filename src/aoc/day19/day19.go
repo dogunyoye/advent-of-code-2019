@@ -78,10 +78,11 @@ func generateProgram() []int64 {
 func setInput() int64 {
 	currentPos = positions[positionIndex]
 	var input = int64(0)
-	if numOfInputs == 0 {
+	switch numOfInputs {
+	case 0:
 		input = int64(currentPos.X)
 		numOfInputs++
-	} else if numOfInputs == 1 {
+	case 1:
 		input = int64(currentPos.Y)
 		numOfInputs = 0
 		positionIndex++
@@ -127,23 +128,25 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 
 		input := setInput()
 
-		if paramMode0 == 0 { // position mode
+		switch paramMode0 {
+		case 0: // position mode
 			program[program[opcodeIndex]] = input
-		} else if paramMode0 == 1 { // immediate mode
+		case 1: // immediate mode
 			program[opcodeIndex] = input
-		} else if paramMode0 == 2 { // relative mode
+		case 2: // relative mode
 			program[program[opcodeIndex]+relativeBase] = input
 		}
 		return 2
 	}
 
-	if paramMode0 == 0 { // position mode
+	switch paramMode0 {
+	case 0: // position mode
 		firstOperand = program[program[opcodeIndex]]
-	} else if paramMode0 == 1 { // immediate mode
+	case 1: // immediate mode
 		firstOperand = program[opcodeIndex]
-	} else if paramMode0 == 2 { // relative mode
+	case 2: // relative mode
 		firstOperand = program[program[opcodeIndex]+relativeBase]
-	} else {
+	default:
 		fmt.Println("Unknown first param mode:", paramMode0)
 	}
 
@@ -171,13 +174,14 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 
 	opcodeIndex++
 
-	if paramMode1 == 0 { // position mode
+	switch paramMode1 {
+	case 0: // position mode
 		secondOperand = program[program[opcodeIndex]]
-	} else if paramMode1 == 1 { // immediate mode
+	case 1: // immediate mode
 		secondOperand = program[opcodeIndex]
-	} else if paramMode1 == 2 { // relative mode
+	case 2: // relative mode
 		secondOperand = program[program[opcodeIndex]+relativeBase]
-	} else {
+	default:
 		fmt.Println("Unknown second param mode:", paramMode1)
 	}
 
@@ -186,10 +190,8 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 	switch opcode {
 	case 1:
 		result = firstOperand + secondOperand
-		break
 	case 2:
 		result = firstOperand * secondOperand
-		break
 	case 5:
 		if firstOperand != 0 {
 			memPointer = secondOperand
@@ -218,9 +220,10 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 		}
 	}
 
-	if paramMode2 == 0 {
+	switch paramMode2 {
+	case 0:
 		program[program[opcodeIndex]] = result
-	} else if paramMode2 == 2 {
+	case 2:
 		program[program[opcodeIndex]+relativeBase] = result
 	}
 
@@ -285,7 +288,6 @@ func runDiagnosticProgram(program []int64) {
 			fallthrough
 		case 2:
 			opcodeJump = runOpcode(opcode, memPointer, program)
-			break
 		case 3:
 			program[program[memPointer+1]] = setInput()
 		case 4:
@@ -307,10 +309,8 @@ func runDiagnosticProgram(program []int64) {
 			fallthrough
 		case 8:
 			opcodeJump = runOpcode(opcode, memPointer, program)
-			break
 		case 9:
 			relativeBase += program[program[memPointer+1]]
-			break
 		case 99:
 			return
 		default:

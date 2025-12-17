@@ -10,12 +10,6 @@ import (
 	"strings"
 )
 
-type position struct {
-	X int
-	Y int
-	Z int
-}
-
 type moon struct {
 	X    int
 	Y    int
@@ -24,8 +18,6 @@ type moon struct {
 	yVel int
 	zVel int
 }
-
-var moonStates = make(map[string][]moon)
 
 var initialX, initialY, initialZ = "", "", ""
 
@@ -169,11 +161,12 @@ func main() {
 		for i := 0; i < len(coords); i++ {
 			val := strings.Split(coords[i], "=")
 
-			if i == 0 {
+			switch i {
+			case 0:
 				x, _ = strconv.Atoi(val[1])
-			} else if i == 1 {
+			case 1:
 				y, _ = strconv.Atoi(val[1])
-			} else {
+			default:
 				z, _ = strconv.Atoi(val[1])
 			}
 		}

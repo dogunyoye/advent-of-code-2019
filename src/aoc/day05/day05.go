@@ -110,10 +110,8 @@ func runOpcodeForParameterMode(opcode int, opcodeIndex int, program []int) int {
 	switch opcode {
 	case 1:
 		result = firstOperand + secondOperand
-		break
 	case 2:
 		result = firstOperand * secondOperand
-		break
 	case 5:
 		if firstOperand != 0 {
 			memPointer = secondOperand
@@ -207,7 +205,6 @@ func runDiagnosticProgram(program []int, input int) {
 			fallthrough
 		case 2:
 			opcodeJump = runOpcode(opcode, memPointer, program)
-			break
 		case 3:
 			program[program[memPointer+1]] = input
 		case 4:
@@ -220,7 +217,6 @@ func runDiagnosticProgram(program []int, input int) {
 			fallthrough
 		case 8:
 			opcodeJump = runOpcode(opcode, memPointer, program)
-			break
 		case 99:
 			return
 		default:

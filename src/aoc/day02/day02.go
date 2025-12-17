@@ -71,7 +71,6 @@ func runProgram1(program []int) {
 			fallthrough
 		case 2:
 			runOpcode(opcode, opcodeIndex, program)
-			break
 		case 99:
 			// halt
 			return

@@ -68,24 +68,26 @@ func (computer *intcodeComputer) runOpcodeForParameterMode(opcode int64, opcodeI
 			computer.queue = computer.queue[1:]
 		}
 
-		if paramMode0 == 0 { // position mode
+		switch paramMode0 {
+		case 0: // position mode
 			computer.program[computer.program[opcodeIndex]] = input
-		} else if paramMode0 == 1 { // immediate mode
+		case 1: // immediate mode
 			computer.program[opcodeIndex] = input
-		} else if paramMode0 == 2 { // relative mode
+		case 2: // relative mode
 			computer.program[computer.program[opcodeIndex]+computer.relativeBase] = input
 		}
 		return 2
 	}
 
-	if paramMode0 == 0 { // position mode
+	switch paramMode0 {
+	case 0: // position mode
 		firstOperand = computer.program[computer.program[opcodeIndex]]
-	} else if paramMode0 == 1 { // immediate mode
+	case 1: // immediate mode
 		firstOperand = computer.program[opcodeIndex]
-	} else if paramMode0 == 2 { // relative mode
+	case 2: // relative mode
 		firstOperand = computer.program[computer.program[opcodeIndex]+computer.relativeBase]
-	} else {
-		panic("Unknown first param mode: " + string(paramMode0))
+	default:
+		panic("Unknown first param mode: " + fmt.Sprint(paramMode0))
 	}
 
 	// output instruction
@@ -102,14 +104,15 @@ func (computer *intcodeComputer) runOpcodeForParameterMode(opcode int64, opcodeI
 
 	opcodeIndex++
 
-	if paramMode1 == 0 { // position mode
+	switch paramMode1 {
+	case 0: // position mode
 		secondOperand = computer.program[computer.program[opcodeIndex]]
-	} else if paramMode1 == 1 { // immediate mode
+	case 1: // immediate mode
 		secondOperand = computer.program[opcodeIndex]
-	} else if paramMode1 == 2 { // relative mode
+	case 2: // relative mode
 		secondOperand = computer.program[computer.program[opcodeIndex]+computer.relativeBase]
-	} else {
-		panic("Unknown second param mode: " + string(paramMode1))
+	default:
+		panic("Unknown second param mode: " + fmt.Sprint(paramMode1))
 	}
 
 	opcodeIndex++
@@ -147,9 +150,10 @@ func (computer *intcodeComputer) runOpcodeForParameterMode(opcode int64, opcodeI
 		}
 	}
 
-	if paramMode2 == 0 {
+	switch paramMode2 {
+	case 0:
 		computer.program[computer.program[opcodeIndex]] = result
-	} else if paramMode2 == 2 {
+	case 2:
 		computer.program[computer.program[opcodeIndex]+computer.relativeBase] = result
 	}
 

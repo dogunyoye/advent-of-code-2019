@@ -202,23 +202,25 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 			// input = input[:len(input)-2] + "\n"
 			return -1, false
 		}
-		if paramMode0 == 0 { // position mode
+		switch paramMode0 {
+		case 0: // position mode
 			program[program[opcodeIndex]] = setInput()
-		} else if paramMode0 == 1 { // immediate mode
+		case 1: // immediate mode
 			program[opcodeIndex] = setInput()
-		} else if paramMode0 == 2 { // relative mode
+		case 2: // relative mode
 			program[program[opcodeIndex]+relativeBase] = setInput()
 		}
 		return 2, true
 	}
 
-	if paramMode0 == 0 { // position mode
+	switch paramMode0 {
+	case 0: // position mode
 		firstOperand = program[program[opcodeIndex]]
-	} else if paramMode0 == 1 { // immediate mode
+	case 1: // immediate mode
 		firstOperand = program[opcodeIndex]
-	} else if paramMode0 == 2 { // relative mode
+	case 2: // relative mode
 		firstOperand = program[program[opcodeIndex]+relativeBase]
-	} else {
+	default:
 		fmt.Println("Unknown first param mode:", paramMode0)
 	}
 
@@ -237,13 +239,14 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 
 	opcodeIndex++
 
-	if paramMode1 == 0 { // position mode
+	switch paramMode1 {
+	case 0: // position mode
 		secondOperand = program[program[opcodeIndex]]
-	} else if paramMode1 == 1 { // immediate mode
+	case 1: // immediate mode
 		secondOperand = program[opcodeIndex]
-	} else if paramMode1 == 2 { // relative mode
+	case 2: // relative mode
 		secondOperand = program[program[opcodeIndex]+relativeBase]
-	} else {
+	default:
 		fmt.Println("Unknown second param mode:", paramMode1)
 	}
 
@@ -282,9 +285,10 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 		}
 	}
 
-	if paramMode2 == 0 {
+	switch paramMode2 {
+	case 0:
 		program[program[opcodeIndex]] = result
-	} else if paramMode2 == 2 {
+	case 2:
 		program[program[opcodeIndex]+relativeBase] = result
 	}
 

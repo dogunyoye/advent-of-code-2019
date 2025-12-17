@@ -60,34 +60,38 @@ func setRobot(output int64) {
 	if paintingRobot.outputs%2 == 0 {
 		switch paintingRobot.facing {
 		case up:
-			if output == 0 {
+			switch output {
+			case 0:
 				paintingRobot.facing = left
 				paintingRobot.pos.X--
-			} else if output == 1 {
+			case 1:
 				paintingRobot.facing = right
 				paintingRobot.pos.X++
 			}
 		case right:
-			if output == 0 {
+			switch output {
+			case 0:
 				paintingRobot.facing = up
 				paintingRobot.pos.Y++
-			} else if output == 1 {
+			case 1:
 				paintingRobot.facing = down
 				paintingRobot.pos.Y--
 			}
 		case down:
-			if output == 0 {
+			switch output {
+			case 0:
 				paintingRobot.facing = right
 				paintingRobot.pos.X++
-			} else if output == 1 {
+			case 1:
 				paintingRobot.facing = left
 				paintingRobot.pos.X--
 			}
 		case left:
-			if output == 0 {
+			switch output {
+			case 0:
 				paintingRobot.facing = down
 				paintingRobot.pos.Y--
-			} else if output == 1 {
+			case 1:
 				paintingRobot.facing = up
 				paintingRobot.pos.Y++
 			}
@@ -95,9 +99,10 @@ func setRobot(output int64) {
 	} else { // on every first output set the colour for the position
 
 		var colour = ""
-		if output == 0 {
+		switch output {
+		case 0:
 			colour = "."
-		} else if output == 1 {
+		case 1:
 			colour = "#"
 		}
 
@@ -117,9 +122,10 @@ func getInputFromRobot() int {
 	_, exists := paintingRobot.traversed[paintingRobot.pos]
 	if exists {
 		colour = paintingRobot.traversed[paintingRobot.pos]
-		if colour == "." {
+		switch colour {
+		case ".":
 			input = 0
-		} else if colour == "#" {
+		case "#":
 			input = 1
 		}
 	}
@@ -197,23 +203,25 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 
 		input := int64(getInputFromRobot())
 
-		if paramMode0 == 0 { // position mode
+		switch paramMode0 {
+		case 0: // position mode
 			program[program[opcodeIndex]] = input
-		} else if paramMode0 == 1 { // immediate mode
+		case 1: // immediate mode
 			program[opcodeIndex] = input
-		} else if paramMode0 == 2 { // relative mode
+		case 2: // relative mode
 			program[program[opcodeIndex]+relativeBase] = input
 		}
 		return 2
 	}
 
-	if paramMode0 == 0 { // position mode
+	switch paramMode0 {
+	case 0: // position mode
 		firstOperand = program[program[opcodeIndex]]
-	} else if paramMode0 == 1 { // immediate mode
+	case 1: // immediate mode
 		firstOperand = program[opcodeIndex]
-	} else if paramMode0 == 2 { // relative mode
+	case 2: // relative mode
 		firstOperand = program[program[opcodeIndex]+relativeBase]
-	} else {
+	default:
 		fmt.Println("Unknown first param mode:", paramMode0)
 	}
 
@@ -233,13 +241,14 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 
 	opcodeIndex++
 
-	if paramMode1 == 0 { // position mode
+	switch paramMode1 {
+	case 0: // position mode
 		secondOperand = program[program[opcodeIndex]]
-	} else if paramMode1 == 1 { // immediate mode
+	case 1: // immediate mode
 		secondOperand = program[opcodeIndex]
-	} else if paramMode1 == 2 { // relative mode
+	case 2: // relative mode
 		secondOperand = program[program[opcodeIndex]+relativeBase]
-	} else {
+	default:
 		fmt.Println("Unknown second param mode:", paramMode1)
 	}
 
@@ -248,10 +257,8 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 	switch opcode {
 	case 1:
 		result = firstOperand + secondOperand
-		break
 	case 2:
 		result = firstOperand * secondOperand
-		break
 	case 5:
 		if firstOperand != 0 {
 			memPointer = secondOperand
@@ -280,9 +287,10 @@ func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64)
 		}
 	}
 
-	if paramMode2 == 0 {
+	switch paramMode2 {
+	case 0:
 		program[program[opcodeIndex]] = result
-	} else if paramMode2 == 2 {
+	case 2:
 		program[program[opcodeIndex]+relativeBase] = result
 	}
 
@@ -347,7 +355,6 @@ func runDiagnosticProgram(program []int64) {
 			fallthrough
 		case 2:
 			opcodeJump = runOpcode(opcode, memPointer, program)
-			break
 		case 3:
 			input := int64(getInputFromRobot())
 			program[program[memPointer+1]] = input
@@ -362,10 +369,8 @@ func runDiagnosticProgram(program []int64) {
 			fallthrough
 		case 8:
 			opcodeJump = runOpcode(opcode, memPointer, program)
-			break
 		case 9:
 			relativeBase += program[program[memPointer+1]]
-			break
 		case 99:
 			return
 		default:
