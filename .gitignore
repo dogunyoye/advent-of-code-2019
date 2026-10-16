@@ -1,1 +1,18 @@
-src/data/*.txt
+# Advent of Code puzzle inputs (personal to each participant, keep local)
+inputs/*.txt
+
+# Go build artifacts
+*.exe
+*.out
+/bin/
+/dist/
+
+# Single-module repo: do not commit workspace files
+go.work
+go.work.sum
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

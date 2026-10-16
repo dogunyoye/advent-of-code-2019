@@ -1,0 +1,2 @@
+# Enforce LF line endings everywhere to avoid CRLF churn on Windows checkouts.
+* text=auto eol=lf
