@@ -1,24 +1,23 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"math"
 	"os"
-	"strconv"
-	"strings"
 
+	"aoc/2019/internal/intcode"
 	"aoc/2019/internal/puzzle"
 )
-
-var memPointer = int64(0)
-var output = int64(0)
-var relativeBase = int64(0)
 
 var spaceship = make(map[position]string)
 
 var oxygenPos = position{-1, -1}
+
+// currentInput holds the movement command for the in-progress step.
+// The machine may consume it more than once per step, exactly like the
+// original per-call input parameter.
+var currentInput int64
 
 type direction int
 
@@ -41,261 +40,16 @@ var directions = []direction{
 	west,
 }
 
-func copyArray(array []int64) []int64 {
-	arrNew := make([]int64, 0)
-	arrNew = append(arrNew, array...)
-	return arrNew
-}
-
-func generateProgram() []int64 {
-	file, err := os.Open(puzzle.Path("day15.txt"))
-
-	if err != nil {
-		log.Fatalf("failed opening file: %s", err)
+// stepMachine feeds one movement command and runs until the next
+// output, mirroring the original pause-before-input protocol.
+func stepMachine(m *intcode.Machine, dir direction) int64 {
+	currentInput = int64(dir)
+	res, halted := m.RunUntilOutput()
+	if halted {
+		fmt.Println("Should not halt")
+		os.Exit(2)
 	}
-
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
-
-	var input = []string{}
-
-	for scanner.Scan() {
-		input = strings.Split(scanner.Text(), ",")
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("failed reading file: %s", err)
-	}
-
-	var program = []int64{}
-
-	for _, i := range input {
-		j, err := strconv.Atoi(i)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(2)
-		}
-
-		program = append(program, int64(j))
-	}
-
-	file.Close()
-
-	return program
-}
-
-func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64, input int64) int {
-	opcodeAsString := strconv.Itoa(int(opcode))
-
-	i := 5 - len(opcodeAsString)
-
-	padder := ""
-	for x := 0; x < i; x++ {
-		padder += "0"
-	}
-
-	// pad with 0
-	opcodeAsString = padder + opcodeAsString
-
-	code := string(opcodeAsString[3]) + string(opcodeAsString[4])
-	p1 := string(opcodeAsString[2])
-	p2 := string(opcodeAsString[1])
-	p3 := string(opcodeAsString[0])
-
-	o, _ := strconv.Atoi(code)
-	opcode = int64(o)
-
-	paramMode0, _ := strconv.Atoi(p1)
-	paramMode1, _ := strconv.Atoi(p2)
-	paramMode2, _ := strconv.Atoi(p3)
-
-	var firstOperand = int64(0)
-	var secondOperand = int64(0)
-
-	var result = int64(0)
-
-	opcodeIndex++
-
-	// input instruction
-	if opcode == 3 {
-
-		switch paramMode0 {
-		case 0: // position mode
-			program[program[opcodeIndex]] = input
-		case 1: // immediate mode
-			program[opcodeIndex] = input
-		case 2: // relative mode
-			program[program[opcodeIndex]+relativeBase] = input
-		}
-		return 2
-	}
-
-	switch paramMode0 {
-	case 0: // position mode
-		firstOperand = program[program[opcodeIndex]]
-	case 1: // immediate mode
-		firstOperand = program[opcodeIndex]
-	case 2: // relative mode
-		firstOperand = program[program[opcodeIndex]+relativeBase]
-	default:
-		fmt.Println("Unknown first param mode:", paramMode0)
-	}
-
-	// output instruction
-	if opcode == 4 {
-		output = firstOperand
-		return 2
-	}
-
-	// relative base adjustment instruction
-	if opcode == 9 {
-		relativeBase += firstOperand
-		return 2
-	}
-
-	opcodeIndex++
-
-	switch paramMode1 {
-	case 0: // position mode
-		secondOperand = program[program[opcodeIndex]]
-	case 1: // immediate mode
-		secondOperand = program[opcodeIndex]
-	case 2: // relative mode
-		secondOperand = program[program[opcodeIndex]+relativeBase]
-	default:
-		fmt.Println("Unknown second param mode:", paramMode1)
-	}
-
-	opcodeIndex++
-
-	switch opcode {
-	case 1:
-		result = firstOperand + secondOperand
-	case 2:
-		result = firstOperand * secondOperand
-	case 5:
-		if firstOperand != 0 {
-			memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 6:
-		if firstOperand == 0 {
-			memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 7:
-		if firstOperand < secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	case 8:
-		if firstOperand == secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	}
-
-	switch paramMode2 {
-	case 0:
-		program[program[opcodeIndex]] = result
-	case 2:
-		program[program[opcodeIndex]+relativeBase] = result
-	}
-
-	return 4
-}
-
-func runOpcode(opcode int64, opcodeIndex int64, program []int64) int {
-	var firstOperand = program[program[opcodeIndex+1]]
-	var secondOperand = program[program[opcodeIndex+2]]
-	var resultIndex = program[opcodeIndex+3]
-
-	var result = int64(0)
-
-	switch opcode {
-	case 1:
-		result = firstOperand + secondOperand
-	case 2:
-		result = firstOperand * secondOperand
-	case 5:
-		if firstOperand != 0 {
-			memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 6:
-		if firstOperand == 0 {
-			memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 7:
-		if firstOperand < secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	case 8:
-		if firstOperand == secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	}
-
-	program[resultIndex] = result
-
-	return 4
-}
-
-func runDiagnosticProgram(program []int64, input int64) int64 {
-	var opcode = program[memPointer]
-	var hasOutput = false
-
-	for {
-		var opcodeJump = 2
-
-		switch opcode {
-		case 1:
-			fallthrough
-		case 2:
-			opcodeJump = runOpcode(opcode, memPointer, program)
-		case 3:
-			if hasOutput {
-				return output
-			}
-			program[program[memPointer+1]] = input
-		case 4:
-			output = program[program[memPointer+1]]
-			hasOutput = true
-		case 5:
-			fallthrough
-		case 6:
-			fallthrough
-		case 7:
-			fallthrough
-		case 8:
-			opcodeJump = runOpcode(opcode, memPointer, program)
-		case 9:
-			relativeBase += program[program[memPointer+1]]
-		case 99:
-			fmt.Println("Should not halt")
-			os.Exit(2)
-		default:
-			opcodeJump = runOpcodeForParameterMode(opcode, memPointer, program, input)
-		}
-
-		memPointer += int64(opcodeJump)
-		opcode = program[memPointer]
-	}
+	return res
 }
 
 func opposite(dir direction) direction {
@@ -314,29 +68,29 @@ func opposite(dir direction) direction {
 	return -1
 }
 
-func moveInDirection(program []int64, currentPos position, dir direction) {
+func moveInDirection(m *intcode.Machine, currentPos position, dir direction) {
 	switch dir {
 	case north:
-		exploreShip(program, position{currentPos.X - 1, currentPos.Y})
+		exploreShip(m, position{currentPos.X - 1, currentPos.Y})
 	case east:
-		exploreShip(program, position{currentPos.X, currentPos.Y + 1})
+		exploreShip(m, position{currentPos.X, currentPos.Y + 1})
 	case south:
-		exploreShip(program, position{currentPos.X + 1, currentPos.Y})
+		exploreShip(m, position{currentPos.X + 1, currentPos.Y})
 	case west:
-		exploreShip(program, position{currentPos.X, currentPos.Y - 1})
+		exploreShip(m, position{currentPos.X, currentPos.Y - 1})
 	}
 
-	runDiagnosticProgram(program, int64(opposite(dir)))
+	stepMachine(m, opposite(dir))
 }
 
-func exploreShip(program []int64, currentPos position) {
+func exploreShip(m *intcode.Machine, currentPos position) {
 	_, exists := spaceship[currentPos]
 	if exists {
 		return
 	}
 
 	for _, dir := range directions {
-		res := runDiagnosticProgram(program, int64(dir))
+		res := stepMachine(m, dir)
 
 		switch res {
 
@@ -359,13 +113,13 @@ func exploreShip(program []int64, currentPos position) {
 		// moved into space (.)
 		case 1:
 			spaceship[position{currentPos.X, currentPos.Y}] = "."
-			moveInDirection(program, currentPos, dir)
+			moveInDirection(m, currentPos, dir)
 
 		// moved into space and found oxygen (O)
 		case 2:
 			oxygenPos = currentPos
 			spaceship[position{currentPos.X, currentPos.Y}] = "O"
-			moveInDirection(program, currentPos, dir)
+			moveInDirection(m, currentPos, dir)
 
 		default:
 			fmt.Println("Invalid output")
@@ -533,13 +287,17 @@ func fillWithOxygen(oxygenPos position) int {
 
 func main() {
 
-	var program = copyArray(generateProgram())
+	program, err := intcode.LoadProgram(puzzle.Path("day15.txt"))
+	if err != nil {
+		log.Fatalf("failed loading program: %s", err)
+	}
+
+	m := intcode.New(program)
+	m.In = func() int64 { return currentInput }
+
 	var startPos = position{50, 50}
 
-	exploreShip(program, startPos)
-
-	memPointer = 0
-	relativeBase = 0
+	exploreShip(m, startPos)
 
 	path := aStarSearch(startPos, oxygenPos)
 

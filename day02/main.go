@@ -1,119 +1,37 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
-	"os"
-	"strconv"
-	"strings"
 
+	"aoc/2019/internal/intcode"
 	"aoc/2019/internal/puzzle"
 )
 
-func copyArray(array []int) []int {
-	arrNew := make([]int, 0)
-	arrNew = append(arrNew, array...)
-	return arrNew
-}
-
-func generateProgram() []int {
-	file, err := os.Open(puzzle.Path("day02.txt"))
-
+func main() {
+	program, err := intcode.LoadProgram(puzzle.Path("day02.txt"))
 	if err != nil {
-		log.Fatalf("failed opening file: %s", err)
+		log.Fatalf("failed loading program: %s", err)
 	}
 
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
+	m := intcode.New(program)
+	m.SetMem(1, 12)
+	m.SetMem(2, 2)
+	m.Run()
 
-	var input = []string{}
+	fmt.Println("Part1:", m.Mem(0))
 
-	for scanner.Scan() {
-		input = strings.Split(scanner.Text(), ",")
-	}
+	for noun := int64(0); noun <= 99; noun++ {
+		for verb := int64(0); verb <= 99; verb++ {
+			m := intcode.New(program)
+			m.SetMem(1, noun)
+			m.SetMem(2, verb)
+			m.Run()
 
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("failed reading file: %s", err)
-	}
-
-	var program = []int{}
-
-	for _, i := range input {
-		j, err := strconv.Atoi(i)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(2)
-		}
-
-		program = append(program, j)
-	}
-
-	file.Close()
-
-	return program
-}
-
-func runOpcode(opcode int, opcodeIndex int, program []int) {
-	firstOperand := program[program[opcodeIndex+1]]
-	secondOperand := program[program[opcodeIndex+2]]
-	resultIndex := program[opcodeIndex+3]
-
-	if opcode == 1 {
-		program[resultIndex] = firstOperand + secondOperand
-	} else {
-		program[resultIndex] = firstOperand * secondOperand
-	}
-}
-
-func runProgram1(program []int) {
-	opcodeIndex := 0
-	opcode := program[opcodeIndex]
-
-	for {
-
-		switch opcode {
-		case 1:
-			fallthrough
-		case 2:
-			runOpcode(opcode, opcodeIndex, program)
-		case 99:
-			// halt
-			return
-		}
-
-		opcodeIndex += 4
-		opcode = program[opcodeIndex]
-	}
-}
-
-func runProgram2(p []int, output int) {
-	for noun := 0; noun <= 99; noun++ {
-		for verb := 0; verb <= 99; verb++ {
-			program := copyArray(p)
-			program[1] = noun
-			program[2] = verb
-
-			runProgram1(program)
-			if program[0] == output {
-				part2 := (100 * program[1]) + program[2]
-				fmt.Println("Part2:", part2)
+			if m.Mem(0) == 19690720 {
+				fmt.Println("Part2:", 100*m.Mem(1)+m.Mem(2))
 				return
 			}
 		}
 	}
-}
-
-func main() {
-
-	var program1 = copyArray(generateProgram())
-	var program2 = copyArray(program1)
-
-	program1[1] = 12
-	program1[2] = 2
-	runProgram1(program1)
-
-	fmt.Println("Part1:", program1[0])
-
-	runProgram2(program2, 19690720)
 }
