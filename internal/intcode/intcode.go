@@ -118,16 +118,147 @@ func (m *Machine) set(addr, value int64) {
 	m.mem[addr] = value
 }
 
-func (m *Machine) nextInput() int64 {
-	if m.In != nil {
-		return m.In()
+// EventKind classifies the outcome of a single Step.
+type EventKind int
+
+const (
+	// Continue means a silent instruction executed (or input consumed).
+	Continue EventKind = iota
+	// NeedInput means opcode 3 was reached with no input available:
+	// In is nil and the feed queue is empty. Nothing executed;
+	// Feed a value (or set In) and Step again.
+	NeedInput
+	// Output means opcode 4 executed; Event.Value holds the value
+	// (also delivered to Out when set).
+	Output
+	// Halted means opcode 99 executed (or the machine already halted).
+	Halted
+)
+
+// Event is the outcome of a single Step.
+type Event struct {
+	Kind  EventKind
+	Value int64 // valid when Kind == Output
+}
+
+// IP returns the address of the next instruction to execute, letting
+// schedulers inspect it (e.g. to distinguish a bare opcode 3 word
+// from a mode-prefixed one).
+func (m *Machine) IP() int64 {
+	return m.ip
+}
+
+// Step executes a single instruction and reports what happened. It is
+// the building block for schedulers that must pause and resume a
+// machine (networks, interactive programs).
+func (m *Machine) Step() Event {
+	if m.Halted {
+		return Event{Kind: Halted}
 	}
-	if len(m.queue) == 0 {
-		panic("intcode: opcode 3 with In unset and empty feed queue")
+	return m.exec()
+}
+
+// Run executes until opcode 99.
+func (m *Machine) Run() {
+	m.run(false)
+}
+
+// RunUntilOutput executes until the next opcode 4 or halt, returning
+// the output value (false) or (0, true) on halt. The output is still
+// delivered to Out when set.
+func (m *Machine) RunUntilOutput() (int64, bool) {
+	return m.run(true)
+}
+
+func (m *Machine) run(stopOnOutput bool) (int64, bool) {
+	for !m.Halted {
+		switch ev := m.exec(); ev.Kind {
+		case Halted:
+			return 0, true
+		case Output:
+			if stopOnOutput {
+				return ev.Value, false
+			}
+		case NeedInput:
+			panic("intcode: opcode 3 with In unset and empty feed queue")
+		case Continue:
+		}
 	}
-	v := m.queue[0]
-	m.queue = m.queue[1:]
-	return v
+	return 0, true
+}
+
+// exec executes the instruction at the instruction pointer, returning
+// its event. A NeedInput event advances nothing.
+func (m *Machine) exec() Event {
+	op := m.get(m.ip)
+	code := op % 100
+	var mode [3]int64
+	for i, d := 0, op/100; i < 3; i, d = i+1, d/10 {
+		mode[i] = d % 10
+	}
+
+	switch code {
+	case 1:
+		m.set(m.writeAddr(3, mode[2]), m.readParam(1, mode[0])+m.readParam(2, mode[1]))
+		m.ip += 4
+	case 2:
+		m.set(m.writeAddr(3, mode[2]), m.readParam(1, mode[0])*m.readParam(2, mode[1]))
+		m.ip += 4
+	case 3:
+		var v int64
+		if m.In != nil {
+			v = m.In()
+		} else if len(m.queue) != 0 {
+			v = m.queue[0]
+			m.queue = m.queue[1:]
+		} else {
+			return Event{Kind: NeedInput}
+		}
+		m.set(m.writeAddr(1, mode[0]), v)
+		m.ip += 2
+	case 4:
+		v := m.readParam(1, mode[0])
+		m.ip += 2
+		if m.Out != nil {
+			m.Out(v)
+		}
+		return Event{Kind: Output, Value: v}
+	case 5:
+		if m.readParam(1, mode[0]) != 0 {
+			m.ip = m.readParam(2, mode[1])
+		} else {
+			m.ip += 3
+		}
+	case 6:
+		if m.readParam(1, mode[0]) == 0 {
+			m.ip = m.readParam(2, mode[1])
+		} else {
+			m.ip += 3
+		}
+	case 7:
+		var v int64
+		if m.readParam(1, mode[0]) < m.readParam(2, mode[1]) {
+			v = 1
+		}
+		m.set(m.writeAddr(3, mode[2]), v)
+		m.ip += 4
+	case 8:
+		var v int64
+		if m.readParam(1, mode[0]) == m.readParam(2, mode[1]) {
+			v = 1
+		}
+		m.set(m.writeAddr(3, mode[2]), v)
+		m.ip += 4
+	case 9:
+		m.rel += m.readParam(1, mode[0])
+		m.ip += 2
+	case 99:
+		m.Halted = true
+		return Event{Kind: Halted}
+	default:
+		panic(fmt.Sprintf("intcode: unknown opcode %d at %d", op, m.ip))
+	}
+	return Event{Kind: Continue}
 }
 
 // readParam returns the value of the n-th parameter (1-based) under mode.
@@ -156,83 +287,4 @@ func (m *Machine) writeAddr(n int, mode int64) int64 {
 	default:
 		panic(fmt.Sprintf("intcode: bad write mode %d at %d", mode, m.ip))
 	}
-}
-
-// Run executes until opcode 99.
-func (m *Machine) Run() {
-	m.run(false)
-}
-
-// RunUntilOutput executes until the next opcode 4 or halt, returning
-// the output value (false) or (0, true) on halt. The output is still
-// delivered to Out when set.
-func (m *Machine) RunUntilOutput() (int64, bool) {
-	return m.run(true)
-}
-
-func (m *Machine) run(stopOnOutput bool) (int64, bool) {
-	for !m.Halted {
-		op := m.get(m.ip)
-		code := op % 100
-		var mode [3]int64
-		for i, d := 0, op/100; i < 3; i, d = i+1, d/10 {
-			mode[i] = d % 10
-		}
-
-		switch code {
-		case 1:
-			m.set(m.writeAddr(3, mode[2]), m.readParam(1, mode[0])+m.readParam(2, mode[1]))
-			m.ip += 4
-		case 2:
-			m.set(m.writeAddr(3, mode[2]), m.readParam(1, mode[0])*m.readParam(2, mode[1]))
-			m.ip += 4
-		case 3:
-			m.set(m.writeAddr(1, mode[0]), m.nextInput())
-			m.ip += 2
-		case 4:
-			v := m.readParam(1, mode[0])
-			m.ip += 2
-			if m.Out != nil {
-				m.Out(v)
-			}
-			if stopOnOutput {
-				return v, false
-			}
-		case 5:
-			if m.readParam(1, mode[0]) != 0 {
-				m.ip = m.readParam(2, mode[1])
-			} else {
-				m.ip += 3
-			}
-		case 6:
-			if m.readParam(1, mode[0]) == 0 {
-				m.ip = m.readParam(2, mode[1])
-			} else {
-				m.ip += 3
-			}
-		case 7:
-			var v int64
-			if m.readParam(1, mode[0]) < m.readParam(2, mode[1]) {
-				v = 1
-			}
-			m.set(m.writeAddr(3, mode[2]), v)
-			m.ip += 4
-		case 8:
-			var v int64
-			if m.readParam(1, mode[0]) == m.readParam(2, mode[1]) {
-				v = 1
-			}
-			m.set(m.writeAddr(3, mode[2]), v)
-			m.ip += 4
-		case 9:
-			m.rel += m.readParam(1, mode[0])
-			m.ip += 2
-		case 99:
-			m.Halted = true
-			return 0, true
-		default:
-			panic(fmt.Sprintf("intcode: unknown opcode %d at %d", op, m.ip))
-		}
-	}
-	return 0, true
 }

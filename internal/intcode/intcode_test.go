@@ -94,6 +94,58 @@ func TestRunUntilOutput(t *testing.T) {
 	}
 }
 
+func TestStepSequence(t *testing.T) {
+	m := New([]int64{3, 0, 4, 0, 99})
+
+	if ev := m.Step(); ev.Kind != NeedInput {
+		t.Fatalf("step 1 = %+v, want NeedInput", ev)
+	}
+	// Nothing executed: still parked on the input instruction.
+	if m.IP() != 0 {
+		t.Fatalf("IP = %d, want 0", m.IP())
+	}
+
+	m.Feed(7)
+	if ev := m.Step(); ev.Kind != Continue {
+		t.Fatalf("step 2 = %+v, want Continue", ev)
+	}
+	if ev := m.Step(); ev.Kind != Output || ev.Value != 7 {
+		t.Fatalf("step 3 = %+v, want Output 7", ev)
+	}
+	if ev := m.Step(); ev.Kind != Halted {
+		t.Fatalf("step 4 = %+v, want Halted", ev)
+	}
+	if !m.Halted {
+		t.Fatal("want Halted flag set")
+	}
+	// Stepping a halted machine stays halted.
+	if ev := m.Step(); ev.Kind != Halted {
+		t.Fatalf("step 5 = %+v, want Halted", ev)
+	}
+}
+
+func TestStepUsesInCallback(t *testing.T) {
+	m := New([]int64{3, 0, 4, 0, 99})
+	m.In = func() int64 { return 9 }
+	if ev := m.Step(); ev.Kind != Continue {
+		t.Fatalf("step 1 = %+v, want Continue", ev)
+	}
+	if ev := m.Step(); ev.Kind != Output || ev.Value != 9 {
+		t.Fatalf("step 2 = %+v, want Output 9", ev)
+	}
+}
+
+func TestIPPointsAtNextInstruction(t *testing.T) {
+	m := New([]int64{1101, 100, -1, 4, 0})
+	if m.IP() != 0 {
+		t.Fatalf("IP = %d, want 0", m.IP())
+	}
+	m.Run()
+	if m.IP() != 4 {
+		t.Fatalf("IP = %d, want 4 (halt address)", m.IP())
+	}
+}
+
 func TestNewCopiesProgram(t *testing.T) {
 	template := []int64{1, 0, 0, 0, 99}
 	m := New(template)

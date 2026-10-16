@@ -1,24 +1,19 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
-	"os"
-	"strconv"
-	"strings"
 
+	"aoc/2019/internal/intcode"
 	"aoc/2019/internal/puzzle"
 )
 
 type intcodeComputer struct {
-	id           int
-	program      []int64
-	memPointer   int64
-	output       []int64
-	relativeBase int64
-	queue        []int64
-	initialised  bool
+	id          int
+	vm          *intcode.Machine
+	output      []int64
+	queue       []int64
+	initialised bool
 }
 
 type nat struct {
@@ -26,249 +21,33 @@ type nat struct {
 	previousPacket []int64
 }
 
-func (computer *intcodeComputer) runOpcodeForParameterMode(opcode int64, opcodeIndex int64) int {
-	opcodeAsString := strconv.Itoa(int(opcode))
-
-	i := 5 - len(opcodeAsString)
-
-	padder := ""
-	for x := 0; x < i; x++ {
-		padder += "0"
-	}
-
-	// pad with 0
-	opcodeAsString = padder + opcodeAsString
-
-	code := string(opcodeAsString[3]) + string(opcodeAsString[4])
-	p1 := string(opcodeAsString[2])
-	p2 := string(opcodeAsString[1])
-	p3 := string(opcodeAsString[0])
-
-	o, _ := strconv.Atoi(code)
-	opcode = int64(o)
-
-	paramMode0, _ := strconv.Atoi(p1)
-	paramMode1, _ := strconv.Atoi(p2)
-	paramMode2, _ := strconv.Atoi(p3)
-
-	var firstOperand = int64(0)
-	var secondOperand = int64(0)
-
-	var result = int64(0)
-
-	opcodeIndex++
-
-	// input instruction
-	if opcode == 3 {
-
-		var input = int64(-1)
-		if !computer.initialised {
-			input = int64(computer.id)
-			computer.initialised = true
-		} else if len(computer.queue) != 0 {
-			input = computer.queue[0]
-			computer.queue = computer.queue[1:]
-		}
-
-		switch paramMode0 {
-		case 0: // position mode
-			computer.program[computer.program[opcodeIndex]] = input
-		case 1: // immediate mode
-			computer.program[opcodeIndex] = input
-		case 2: // relative mode
-			computer.program[computer.program[opcodeIndex]+computer.relativeBase] = input
-		}
-		return 2
-	}
-
-	switch paramMode0 {
-	case 0: // position mode
-		firstOperand = computer.program[computer.program[opcodeIndex]]
-	case 1: // immediate mode
-		firstOperand = computer.program[opcodeIndex]
-	case 2: // relative mode
-		firstOperand = computer.program[computer.program[opcodeIndex]+computer.relativeBase]
-	default:
-		panic("Unknown first param mode: " + fmt.Sprint(paramMode0))
-	}
-
-	// output instruction
-	if opcode == 4 {
-		computer.output = append(computer.output, firstOperand)
-		return 2
-	}
-
-	// relative base adjustment instruction
-	if opcode == 9 {
-		computer.relativeBase += firstOperand
-		return 2
-	}
-
-	opcodeIndex++
-
-	switch paramMode1 {
-	case 0: // position mode
-		secondOperand = computer.program[computer.program[opcodeIndex]]
-	case 1: // immediate mode
-		secondOperand = computer.program[opcodeIndex]
-	case 2: // relative mode
-		secondOperand = computer.program[computer.program[opcodeIndex]+computer.relativeBase]
-	default:
-		panic("Unknown second param mode: " + fmt.Sprint(paramMode1))
-	}
-
-	opcodeIndex++
-
-	switch opcode {
-	case 1:
-		result = firstOperand + secondOperand
-	case 2:
-		result = firstOperand * secondOperand
-	case 5:
-		if firstOperand != 0 {
-			computer.memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 6:
-		if firstOperand == 0 {
-			computer.memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 7:
-		if firstOperand < secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	case 8:
-		if firstOperand == secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	}
-
-	switch paramMode2 {
-	case 0:
-		computer.program[computer.program[opcodeIndex]] = result
-	case 2:
-		computer.program[computer.program[opcodeIndex]+computer.relativeBase] = result
-	}
-
-	return 4
-}
-
-func (computer *intcodeComputer) runOpcode(opcode int64, opcodeIndex int64, program []int64) int {
-	var firstOperand = program[program[opcodeIndex+1]]
-	var secondOperand = program[program[opcodeIndex+2]]
-	var resultIndex = program[opcodeIndex+3]
-
-	var result = int64(0)
-
-	switch opcode {
-	case 1:
-		result = firstOperand + secondOperand
-	case 2:
-		result = firstOperand * secondOperand
-	case 5:
-		if firstOperand != 0 {
-			computer.memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 6:
-		if firstOperand == 0 {
-			computer.memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 7:
-		if firstOperand < secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	case 8:
-		if firstOperand == secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	}
-
-	program[resultIndex] = result
-	return 4
-}
-
 func (computer *intcodeComputer) runDiagnosticProgram(computers []*intcodeComputer, n *nat) (int64, bool) {
-	opcode := computer.program[computer.memPointer]
-	opcodeJump := 0
-
 	var emptyCount = 0
 	var sentPackets = 0
 
 	for {
-		opcodeJump = 2
-
-		switch opcode {
-		case 1:
-			fallthrough
-		case 2:
-			opcodeJump = computer.runOpcode(opcode, computer.memPointer, computer.program)
-		case 3:
-			if !computer.initialised {
-				computer.program[computer.program[computer.memPointer+1]] = int64(computer.id)
-				computer.initialised = true
-				break
-			}
-
-			if len(computer.queue) == 0 {
-				computer.program[computer.program[computer.memPointer+1]] = -1
-
+		switch ev := computer.vm.Step(); ev.Kind {
+		case intcode.Halted:
+			panic("Unexpected halt")
+		case intcode.Output:
+			computer.output = append(computer.output, ev.Value)
+		case intcode.NeedInput:
+			computer.feedInput(&emptyCount)
+			if emptyCount == 2 {
 				// bit of a hack?
 				// noticed that after the second -1 input
 				// the computer has sent all packets it can
-				emptyCount += 1
-				if n == nil && emptyCount == 2 {
+				if n == nil {
 					return -1, false
 				}
 
 				// if the computer sees 2 consectutive receive request
 				// where the computer has nothing to input, we can say
 				// it's network is idle
-				if n != nil && emptyCount == 2 {
-					return -1, sentPackets == 0
-				}
-			} else {
-				computer.program[computer.program[computer.memPointer+1]] = computer.queue[0]
-				computer.queue = computer.queue[1:]
+				return -1, sentPackets == 0
 			}
-		case 4:
-			computer.output = append(computer.output, computer.program[computer.program[computer.memPointer+1]])
-		case 5:
-			fallthrough
-		case 6:
-			fallthrough
-		case 7:
-			fallthrough
-		case 8:
-			opcodeJump = computer.runOpcode(opcode, computer.memPointer, computer.program)
-		case 9:
-			computer.relativeBase += computer.program[computer.program[computer.memPointer+1]]
-		case 99:
-			panic("Unexpected halt")
-		default:
-			opcodeJump = computer.runOpcodeForParameterMode(opcode, computer.memPointer)
+		case intcode.Continue:
 		}
-
-		computer.memPointer += int64(opcodeJump)
-		opcode = computer.program[computer.memPointer]
 
 		if len(computer.output) == 3 {
 			sentPackets += 1
@@ -290,58 +69,41 @@ func (computer *intcodeComputer) runDiagnosticProgram(computers []*intcodeComput
 	}
 }
 
-func copyArray(array []int64) []int64 {
-	arrNew := make([]int64, 0)
-	arrNew = append(arrNew, array...)
+// feedInput supplies the pending input instruction, mirroring the
+// original split behaviour: only a bare position-mode opcode 3 (word
+// exactly 3) advances the idle counter; mode-prefixed inputs never do.
+// emptyCount is incremented only when a bare input starves.
+func (computer *intcodeComputer) feedInput(emptyCount *int) {
+	bare := computer.vm.Mem(computer.vm.IP()) == 3
 
-	// extend program's memory
-	space := make([]int64, len(array))
-	arrNew = append(arrNew, space...)
-	return arrNew
-}
-
-func generateProgram() []int64 {
-	file, err := os.Open(puzzle.Path("day23.txt"))
-
-	if err != nil {
-		log.Fatalf("failed opening file: %s", err)
+	var input = int64(-1)
+	if !computer.initialised {
+		input = int64(computer.id)
+		computer.initialised = true
+	} else if len(computer.queue) != 0 {
+		input = computer.queue[0]
+		computer.queue = computer.queue[1:]
+	} else if bare {
+		*emptyCount += 1
 	}
-
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
-
-	var input = []string{}
-
-	for scanner.Scan() {
-		input = strings.Split(scanner.Text(), ",")
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("failed reading file: %s", err)
-	}
-
-	var program = []int64{}
-
-	for _, i := range input {
-		j, err := strconv.Atoi(i)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(2)
-		}
-
-		program = append(program, int64(j))
-	}
-
-	file.Close()
-
-	return program
+	computer.vm.Feed(input)
 }
 
 func findYValueOfFirstPacketSentToAddress255() int64 {
+	program, err := intcode.LoadProgram(puzzle.Path("day23.txt"))
+	if err != nil {
+		log.Fatalf("failed loading program: %s", err)
+	}
+
 	computers := make([]*intcodeComputer, 50)
 	for i := 0; i < 50; i++ {
-		var c = intcodeComputer{i, copyArray(generateProgram()), int64(0), make([]int64, 0), int64(0), make([]int64, 0), false}
-		computers[i] = &c
+		computers[i] = &intcodeComputer{
+			id:          i,
+			vm:          intcode.New(program),
+			output:      make([]int64, 0),
+			queue:       make([]int64, 0),
+			initialised: false,
+		}
 	}
 
 	for {
@@ -355,10 +117,20 @@ func findYValueOfFirstPacketSentToAddress255() int64 {
 }
 
 func findFirstYValueSentByNatTwiceInARow() int64 {
+	program, err := intcode.LoadProgram(puzzle.Path("day23.txt"))
+	if err != nil {
+		log.Fatalf("failed loading program: %s", err)
+	}
+
 	computers := make([]*intcodeComputer, 50)
 	for i := 0; i < 50; i++ {
-		var c = intcodeComputer{i, copyArray(generateProgram()), int64(0), make([]int64, 0), int64(0), make([]int64, 0), false}
-		computers[i] = &c
+		computers[i] = &intcodeComputer{
+			id:          i,
+			vm:          intcode.New(program),
+			output:      make([]int64, 0),
+			queue:       make([]int64, 0),
+			initialised: false,
+		}
 	}
 
 	var n = nat{make([]int64, 2), make([]int64, 2)}

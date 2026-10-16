@@ -5,17 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 
 	"gonum.org/v1/gonum/stat/combin"
 
+	"aoc/2019/internal/intcode"
 	"aoc/2019/internal/puzzle"
 )
-
-var memPointer = int64(0)
-var output = int64(0)
-var relativeBase = int64(0)
 
 var inputIdx = 0
 var input string
@@ -119,248 +114,16 @@ func setInput() int64 {
 	return res
 }
 
-func copyArray(array []int64) []int64 {
-	arrNew := make([]int64, 0)
-	arrNew = append(arrNew, array...)
-
-	// extend program's memory
-	space := make([]int64, len(array)*1000)
-	arrNew = append(arrNew, space...)
-	return arrNew
-}
-
-func generateProgram() []int64 {
-	file, err := os.Open(puzzle.Path("day25.txt"))
-
-	if err != nil {
-		log.Fatalf("failed opening file: %s", err)
-	}
-
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
-
-	var input = []string{}
-
-	for scanner.Scan() {
-		input = strings.Split(scanner.Text(), ",")
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("failed reading file: %s", err)
-	}
-
-	var program = []int64{}
-
-	for _, i := range input {
-		j, err := strconv.Atoi(i)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(2)
-		}
-
-		program = append(program, int64(j))
-	}
-
-	file.Close()
-
-	return program
-}
-
-func runOpcodeForParameterMode(opcode int64, opcodeIndex int64, program []int64) (int, bool) {
-	opcodeAsString := strconv.Itoa(int(opcode))
-
-	i := 5 - len(opcodeAsString)
-
-	padder := ""
-	for x := 0; x < i; x++ {
-		padder += "0"
-	}
-
-	// pad with 0
-	opcodeAsString = padder + opcodeAsString
-
-	code := string(opcodeAsString[3]) + string(opcodeAsString[4])
-	p1 := string(opcodeAsString[2])
-	p2 := string(opcodeAsString[1])
-	p3 := string(opcodeAsString[0])
-
-	o, _ := strconv.Atoi(code)
-	opcode = int64(o)
-
-	paramMode0, _ := strconv.Atoi(p1)
-	paramMode1, _ := strconv.Atoi(p2)
-	paramMode2, _ := strconv.Atoi(p3)
-
-	var firstOperand = int64(0)
-	var secondOperand = int64(0)
-
-	var result = int64(0)
-
-	opcodeIndex++
-
-	// input instruction
-	if opcode == 3 {
-		if collectAllItemsIdx < len(collectAllItems) && inputIdx == 0 {
-			input = collectAllItems[collectAllItemsIdx]
-			collectAllItemsIdx += 1
-		} else if inputIdx == 0 {
-			// input, _ = reader.ReadString('\n')
-			// input = input[:len(input)-2] + "\n"
-			return -1, false
-		}
-		switch paramMode0 {
-		case 0: // position mode
-			program[program[opcodeIndex]] = setInput()
-		case 1: // immediate mode
-			program[opcodeIndex] = setInput()
-		case 2: // relative mode
-			program[program[opcodeIndex]+relativeBase] = setInput()
-		}
-		return 2, true
-	}
-
-	switch paramMode0 {
-	case 0: // position mode
-		firstOperand = program[program[opcodeIndex]]
-	case 1: // immediate mode
-		firstOperand = program[opcodeIndex]
-	case 2: // relative mode
-		firstOperand = program[program[opcodeIndex]+relativeBase]
-	default:
-		fmt.Println("Unknown first param mode:", paramMode0)
-	}
-
-	// output instruction
-	if opcode == 4 {
-		output = firstOperand
-		fmt.Printf("%c", output)
-		return 2, true
-	}
-
-	// relative base adjustment instruction
-	if opcode == 9 {
-		relativeBase += firstOperand
-		return 2, true
-	}
-
-	opcodeIndex++
-
-	switch paramMode1 {
-	case 0: // position mode
-		secondOperand = program[program[opcodeIndex]]
-	case 1: // immediate mode
-		secondOperand = program[opcodeIndex]
-	case 2: // relative mode
-		secondOperand = program[program[opcodeIndex]+relativeBase]
-	default:
-		fmt.Println("Unknown second param mode:", paramMode1)
-	}
-
-	opcodeIndex++
-
-	switch opcode {
-	case 1:
-		result = firstOperand + secondOperand
-	case 2:
-		result = firstOperand * secondOperand
-	case 5:
-		if firstOperand != 0 {
-			memPointer = secondOperand
-			return 0, true
-		}
-
-		return 3, true
-	case 6:
-		if firstOperand == 0 {
-			memPointer = secondOperand
-			return 0, true
-		}
-
-		return 3, true
-	case 7:
-		if firstOperand < secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	case 8:
-		if firstOperand == secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	}
-
-	switch paramMode2 {
-	case 0:
-		program[program[opcodeIndex]] = result
-	case 2:
-		program[program[opcodeIndex]+relativeBase] = result
-	}
-
-	return 4, true
-}
-
-func runOpcode(opcode int64, opcodeIndex int64, program []int64) int {
-	var firstOperand = program[program[opcodeIndex+1]]
-	var secondOperand = program[program[opcodeIndex+2]]
-	var resultIndex = program[opcodeIndex+3]
-
-	var result = int64(0)
-
-	switch opcode {
-	case 1:
-		result = firstOperand + secondOperand
-	case 2:
-		result = firstOperand * secondOperand
-	case 5:
-		if firstOperand != 0 {
-			memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 6:
-		if firstOperand == 0 {
-			memPointer = secondOperand
-			return 0
-		}
-
-		return 3
-	case 7:
-		if firstOperand < secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	case 8:
-		if firstOperand == secondOperand {
-			result = 1
-		} else {
-			result = 0
-		}
-	}
-
-	program[resultIndex] = result
-
-	return 4
-}
-
-func runDiagnosticProgram(program []int64) bool {
-	opcode := program[memPointer]
-
-	opcodeJump := 0
-	continueProgram := true
-
+// runMachine drives the adventure until the program halts (true) or
+// starves for scripted input (false). Outputs stream to stdout as before.
+func runMachine(m *intcode.Machine) bool {
 	for {
-		opcodeJump = 2
-
-		switch opcode {
-		case 1:
-			fallthrough
-		case 2:
-			opcodeJump = runOpcode(opcode, memPointer, program)
-		case 3:
+		switch ev := m.Step(); ev.Kind {
+		case intcode.Halted:
+			return true
+		case intcode.Output:
+			fmt.Printf("%c", ev.Value)
+		case intcode.NeedInput:
 			if collectAllItemsIdx < len(collectAllItems) && inputIdx == 0 {
 				input = collectAllItems[collectAllItemsIdx]
 				collectAllItemsIdx += 1
@@ -369,45 +132,25 @@ func runDiagnosticProgram(program []int64) bool {
 				// input = input[:len(input)-2] + "\n"
 				return false
 			}
-			program[program[memPointer+1]] = setInput()
-		case 4:
-			output = program[program[memPointer+1]]
-			fmt.Printf("%c", output)
-		case 5:
-			fallthrough
-		case 6:
-			fallthrough
-		case 7:
-			fallthrough
-		case 8:
-			opcodeJump = runOpcode(opcode, memPointer, program)
-		case 9:
-			relativeBase += program[program[memPointer+1]]
-		case 99:
-			return true
-		default:
-			opcodeJump, continueProgram = runOpcodeForParameterMode(opcode, memPointer, program)
-			if !continueProgram {
-				return false
-			}
+			m.Feed(setInput())
+		case intcode.Continue:
 		}
-
-		memPointer += int64(opcodeJump)
-		opcode = program[memPointer]
 	}
 }
 
 func findPassword() {
+	program, err := intcode.LoadProgram(puzzle.Path("day25.txt"))
+	if err != nil {
+		log.Fatalf("failed loading program: %s", err)
+	}
+
 	combos := generateItemCombos()
 	for _, c := range combos {
-		memPointer = int64(0)
-		output = int64(0)
-		relativeBase = int64(0)
 		collectAllItemsIdx = 0
 
 		command := generateItemCommand(c)
 		collectAllItems = append(collectAllItems, command...)
-		halted := runDiagnosticProgram(copyArray(generateProgram()))
+		halted := runMachine(intcode.New(program))
 		if halted {
 			return
 		}

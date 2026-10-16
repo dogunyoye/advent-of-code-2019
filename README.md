@@ -9,10 +9,9 @@ Go solutions for [Advent of Code 2019](https://adventofcode.com/2019).
 - `internal/puzzle/` — shared helper resolving input files relative to
   the repo root, so days run from any working directory.
 - `internal/intcode/` — the one shared Intcode VM (all opcodes, parameter
-  modes, relative base, unbounded memory; I/O via callbacks, plus
-  step-wise `Feed`/`RunUntilOutput`). Used by days 2, 5, 9, 11, 13, 15,
-  17, 19, 21. Days 7, 23, 25 still carry their own VM variants
-  (concurrent amplifiers, packet network, interactive adventure).
+  modes, relative base, unbounded memory; I/O via callbacks, step-wise
+  `Feed`/`RunUntilOutput`, and single-step `Step` events for schedulers).
+  Used by every Intcode day (2, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25).
 - `go.mod` / `go.sum` — single Go module (`aoc/2019`).
   Only external dependency is `gonum` (used by day 25).
 
