@@ -9,116 +9,76 @@ import (
 	"aoc/2019/internal/puzzle"
 )
 
-type position struct {
-	X int
-	Y int
+// isPulled runs the tractor-beam program for coordinate (x, y).
+func isPulled(program []int64, x, y int) bool {
+	m := intcode.New(program)
+	in := [2]int64{int64(x), int64(y)}
+	i := 0
+	m.In = func() int64 { v := in[i]; i++; return v }
+	pulled := false
+	m.Out = func(v int64) { pulled = v == 1 }
+	m.Run()
+	return pulled
 }
 
-var currentPos = position{-1, -1}
-
-var positions = []position{}
-var positionIndex = 0
-var numOfInputs = 0
-
-var pulled = 0
-
-var part2 = false
-
-var pullPointsList = []position{}
-var pulledPointsMap = make(map[position]struct{})
-
-func setInput() int64 {
-	currentPos = positions[positionIndex]
-	var input = int64(0)
-	switch numOfInputs {
-	case 0:
-		input = int64(currentPos.X)
-		numOfInputs++
-	case 1:
-		input = int64(currentPos.Y)
-		numOfInputs = 0
-		positionIndex++
-	}
-
-	return input
-}
-
-func handleOutput(v int64) {
-	if v == 1 {
-		pulled++
-		if part2 {
-			pos := position{currentPos.X, currentPos.Y}
-			pullPointsList = append(pullPointsList, pos)
-			pulledPointsMap[pos] = struct{}{}
+func part1(program []int64) int {
+	pulled := 0
+	for x := 0; x < 50; x++ {
+		for y := 0; y < 50; y++ {
+			if isPulled(program, x, y) {
+				pulled++
+			}
 		}
 	}
+	return pulled
 }
 
-func probe(program []int64) {
-	m := intcode.New(program)
-	m.In = func() int64 { return setInput() }
-	m.Out = handleOutput
-	m.Run()
+// part2 finds the top-left corner of the smallest 100x100 square fully
+// inside the beam and returns X*10000+Y.
+//
+// The beam is contiguous in every row, and both its left and right
+// edges only move right as y grows. So the left edge of each row can
+// be found by advancing a pointer that never moves backwards, making
+// the whole search O(width of beam) probes instead of O(n^2).
+func part2(program []int64) int {
+	const size = 100
+	const maxRows = 100000
+
+	leftEdge := 0 // left edge of the current row (never decreases)
+	for row := 0; row < maxRows; row++ {
+		start := leftEdge
+		for leftEdge <= 2*row+10 && !isPulled(program, leftEdge, row) {
+			leftEdge++
+		}
+		if leftEdge > 2*row+10 {
+			// Empty row: leave the pointer where it was so a later,
+			// non-empty row is not skipped.
+			leftEdge = start
+			continue
+		}
+
+		// Treat this row as the bottom row of the square. The left edge
+		// is the smallest valid x, so checking the top-right corner is
+		// enough to prove all four corners are pulled.
+		top := row - (size - 1)
+		if top >= 0 && isPulled(program, leftEdge+size-1, top) {
+			return leftEdge*10000 + top
+		}
+	}
+
+	log.Fatal("part2: no square found")
+	return 0
 }
 
 func main() {
-
-	for x := 0; x < 50; x++ {
-		for y := 0; y < 50; y++ {
-			positions = append(positions, position{x, y})
-		}
-	}
-
 	program, err := intcode.LoadProgram(puzzle.Path("day19.txt"))
 	if err != nil {
 		log.Fatalf("failed loading program: %s", err)
 	}
 
-	for i := 0; i < len(positions); i++ {
-		probe(program)
-	}
-
-	fmt.Println("Part1:", pulled)
+	fmt.Println("Part1:", part1(program))
 
 	start := time.Now()
-
-	// get ready for part 2
-	positions = nil
-	positions = []position{}
-	numOfInputs = 0
-	positionIndex = 0
-	part2 = true
-
-	for x := 0; x < 2000; x++ {
-		for y := 0; y < 2000; y++ {
-			positions = append(positions, position{x, y})
-		}
-	}
-
-	// very slow loop, 4M iterations!
-	// ~3mins completion time
-	// todo: refactor solution
-	for i := 0; i < len(positions); i++ {
-		probe(program)
-	}
-
-	pos := position{-1, -1}
-
-	for _, p := range pullPointsList {
-
-		_, alongX := pulledPointsMap[position{p.X + 99, p.Y}]
-		_, alongY := pulledPointsMap[position{p.X, p.Y + 99}]
-
-		if !alongX || !alongY {
-			continue
-		}
-
-		pos = p
-		break
-	}
-
-	fmt.Println("Part2:", (10000*pos.X)+pos.Y)
-
-	elapsed := time.Since(start)
-	fmt.Println("Part2 took:", elapsed)
+	fmt.Println("Part2:", part2(program))
+	fmt.Println("Part2 took:", time.Since(start))
 }
